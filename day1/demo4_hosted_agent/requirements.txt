@@ -1,0 +1,5 @@
+# Day 1 · Demo 4 — hosted agent runtime dependencies
+agent-framework
+azure-ai-agentserver-agentframework
+azure-identity
+python-dotenv

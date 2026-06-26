@@ -1,0 +1,31 @@
+{
+  "properties": {
+    "displayName": "Accelerate Agentic AI - Allowed Foundry models only",
+    "policyType": "Custom",
+    "mode": "All",
+    "description": "Governs which models may be deployed to Microsoft Foundry / Azure AI Services accounts. Mirrors the slide-21 'allowed list of models' built-in policy: any model deployment whose model name is not in the approved list is audited (or denied). Switch the 'effect' parameter to 'Deny' to block the deploy button outright.",
+    "metadata": { "category": "Microsoft Foundry", "version": "1.0.0" },
+    "parameters": {
+      "allowedModels": {
+        "type": "Array",
+        "metadata": { "displayName": "Allowed model names", "description": "Model names permitted for deployment." },
+        "defaultValue": [ "gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-5-mini", "text-embedding-3-large" ]
+      },
+      "effect": {
+        "type": "String",
+        "metadata": { "displayName": "Effect" },
+        "allowedValues": [ "Audit", "Deny", "Disabled" ],
+        "defaultValue": "Audit"
+      }
+    },
+    "policyRule": {
+      "if": {
+        "allOf": [
+          { "field": "type", "equals": "Microsoft.CognitiveServices/accounts/deployments" },
+          { "not": { "field": "Microsoft.CognitiveServices/accounts/deployments/model.name", "in": "[parameters('allowedModels')]" } }
+        ]
+      },
+      "then": { "effect": "[parameters('effect')]" }
+    }
+  }
+}

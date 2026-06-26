@@ -1,0 +1,13 @@
+# azd configuration for the hosted agent (Day 1 · Demo 4).
+# `azd ai agent init` normally generates this; it's committed here so the demo
+# is reproducible. `azd ai agent run` uses startupCommand to launch agent.py,
+# which the hosting adapter exposes on http://localhost:8088.
+name: day1-hosted-agent
+metadata:
+  template: accelerate-agentic-ai/hosted-agent
+services:
+  hosted-agent:
+    project: .
+    language: python
+    host: containerapp
+    startupCommand: python agent.py

@@ -1,0 +1,66 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "wttr.in Weather",
+    "description": "Free, anonymous weather API. Returns current conditions and forecast as JSON for a given location.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "https://wttr.in" }
+  ],
+  "paths": {
+    "/{location}": {
+      "get": {
+        "operationId": "getWeather",
+        "summary": "Get current weather and forecast for a location",
+        "description": "Returns current conditions and a multi-day forecast for the given city, place, or coordinates.",
+        "parameters": [
+          {
+            "name": "location",
+            "in": "path",
+            "required": true,
+            "description": "City or place name, e.g. 'Seattle', 'London', or 'Sydney'.",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": true,
+            "description": "Output format. Use 'j1' to get structured JSON.",
+            "schema": { "type": "string", "default": "j1", "enum": ["j1"] }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Weather data in JSON form.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "current_condition": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "temp_C": { "type": "string" },
+                          "temp_F": { "type": "string" },
+                          "weatherDesc": {
+                            "type": "array",
+                            "items": { "type": "object", "properties": { "value": { "type": "string" } } }
+                          },
+                          "humidity": { "type": "string" },
+                          "windspeedKmph": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
