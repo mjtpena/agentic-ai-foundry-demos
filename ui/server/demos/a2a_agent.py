@@ -40,8 +40,25 @@ def run(stream: EventStream, payload: dict) -> None:
         stream.status("Simulation complete (A2A not configured).", kind="ok")
         return
 
-    from azure.ai.projects import AIProjectClient
-    from azure.ai.projects.models import PromptAgentDefinition, A2ATool
+    try:
+        from azure.ai.projects import AIProjectClient
+        from azure.ai.projects.models import PromptAgentDefinition, A2ATool
+    except ImportError as e:
+        # A2ATool not available in this SDK version; fall back to simulation
+        stream.status(f"A2A tool unavailable ({e.__class__.__name__}); using simulation", kind="warn")
+        stream.foundry("A2A connection", "(simulated)", kind="connection")
+        stream.status("Simulating Agent A → Agent B interaction", kind="step")
+        message = (payload or {}).get("message") or "What can the secondary agent do?"
+        stream.user(message)
+        sample = (
+            "The secondary agent can fetch records, call APIs, and return structured "
+            "data. This is a simulated streamed response for demo purposes."
+        )
+        for token in sample.split():
+            stream.token(token + " ")
+        stream.emit("token_done", {})
+        stream.status("Simulation complete (tool unavailable).", kind="ok")
+        return
 
     project = AIProjectClient(endpoint=endpoint, credential=get_credential())
     openai_client = project.get_openai_client()
