@@ -31,7 +31,13 @@ def run(stream: EventStream, payload: dict) -> None:
     try:
         credential = DefaultAzureCredential()
     except Exception as exc:
-        stream.error(f"Failed to acquire DefaultAzureCredential: {exc}")
+        stream.error(
+            f"Failed to acquire DefaultAzureCredential: {exc}",
+            hint=(
+                "Ensure the app can authenticate. If running in Azure Container Apps, grant the app's system-assigned managed identity the necessary roles (e.g. 'Cognitive Services User', 'Search Index Data Contributor'),\n"
+                "or set AZURE_CLIENT_ID / AZURE_CLIENT_SECRET / AZURE_TENANT_ID in the app settings to use a service principal. For local testing, run 'az login'."
+            )
+        )
         return
     client = AgentsClient(endpoint=endpoint, credential=credential)
     with client:
