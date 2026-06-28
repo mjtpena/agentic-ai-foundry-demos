@@ -23,10 +23,21 @@ def run(stream: EventStream, payload: dict) -> None:
     model = env("FOUNDRY_MODEL_DEPLOYMENT_NAME", "MODEL_DEPLOYMENT_NAME", default="gpt-4o")
     connection_id = env("A2A_PROJECT_CONNECTION_ID")
     if not connection_id:
-        stream.error(
-            "No A2A connection configured.",
-            hint="Run day2/demo8_a2a_agent/setup_a2a_connection.sh with A2A_TARGET_URL set, "
-                 "then add A2A_PROJECT_CONNECTION_ID to .env.")
+        # Simulate A2A behavior so the demo stays usable when no external A2A
+        # connection is configured. This streams token deltas to mimic a
+        # secondary agent response.
+        stream.foundry("A2A connection", "(simulated)", kind="connection")
+        stream.status("Simulating Agent A → Agent B interaction (no A2A connection)", kind="step")
+        message = (payload or {}).get("message") or "What can the secondary agent do?"
+        stream.user(message)
+        sample = (
+            "The secondary agent can fetch records, call APIs, and return structured "
+            "data. This is a simulated streamed response for demo purposes."
+        )
+        for token in sample.split():
+            stream.token(token + " ")
+        stream.emit("token_done", {})
+        stream.status("Simulation complete (A2A not configured).", kind="ok")
         return
 
     from azure.ai.projects import AIProjectClient
