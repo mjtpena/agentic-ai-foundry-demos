@@ -13,3 +13,4 @@ azure-search-documents==11.7.0b2
 azure-ai-contentsafety==1.0.0
 agent-framework-core==1.9.0
 agent-framework-openai==1.8.2
+pygments==2.16.1
