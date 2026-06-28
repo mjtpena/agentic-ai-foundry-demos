@@ -28,10 +28,11 @@ def run(stream: EventStream, payload: dict) -> None:
     label = env("MCP_SERVER_LABEL", default="mslearn")
     prompt = (payload or {}).get("prompt") or DEFAULT_PROMPT
 
-    credential = DefaultAzureCredential(
-        exclude_environment_credential=True,
-        exclude_managed_identity_credential=True,
-    )
+    try:
+        credential = DefaultAzureCredential()
+    except Exception as exc:
+        stream.error(f"Failed to acquire DefaultAzureCredential: {exc}")
+        return
     client = AgentsClient(endpoint=endpoint, credential=credential)
     with client:
         stream.foundry("MCP server", f"{label} @ {url}", kind="mcp")
