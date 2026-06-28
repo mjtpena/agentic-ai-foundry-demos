@@ -25,7 +25,7 @@ def run(stream: EventStream, payload: dict) -> None:
 async def _run_async(stream: EventStream, payload: dict) -> None:
     from agent_framework.openai import OpenAIChatCompletionClient
     from agent_framework._tools import ai_function
-    from azure.identity import AzureCliCredential
+    from azure.identity import DefaultAzureCredential
 
     endpoint = env("FOUNDRY_ACCOUNT_ENDPOINT")
     if not endpoint:
@@ -36,7 +36,7 @@ async def _run_async(stream: EventStream, payload: dict) -> None:
     mode = payload.get("mode", "joker")
 
     client = OpenAIChatCompletionClient(
-        azure_endpoint=endpoint, credential=AzureCliCredential(),
+        azure_endpoint=endpoint, credential=DefaultAzureCredential(),
         api_version=api_version, model=deployment,
     )
     stream.foundry("Azure OpenAI", deployment, kind="model", endpoint=endpoint)

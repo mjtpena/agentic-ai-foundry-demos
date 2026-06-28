@@ -74,3 +74,38 @@ Notes:
   (api-version `2024-10-21`) — the 1.9.x equivalent of `AzureOpenAIChatClient`.
 - Prompt Shield needs the preview Content Safety SDK; on the stable build the
   Guardrails demo reports it as unavailable and continues.
+
+## Deploy to Azure (Container Apps)
+
+The console is containerized (root `Dockerfile`) and runs on **Azure Container
+Apps** with a **system-assigned managed identity** — no keys. Auth uses
+`DefaultAzureCredential`, so the same code runs locally (via `az login`) and in
+the cloud (via the managed identity).
+
+```bash
+# build + deploy from source (creates an ACR + environment on first run)
+az containerapp up -n foundry-demo-console -g rg-agentic-ai-demos -l australiaeast \
+  --environment agentic-demos-env --source . --ingress external --target-port 8000 \
+  --env-vars PROJECT_ENDPOINT=... FOUNDRY_ACCOUNT_ENDPOINT=... SEARCH_ENDPOINT=... \
+             ENV_SUBSCRIPTION_NAME=... ENV_REGION=australiaeast \
+             ENV_RESOURCE_GROUP=rg-agentic-ai-demos \
+             FOUNDRY_MODELS=gpt-4o,gpt-4.1,gpt-4.1-mini,text-embedding-3-large
+
+# grant the app's identity the same roles your user has
+PID=$(az containerapp show -n foundry-demo-console -g rg-agentic-ai-demos --query identity.principalId -o tsv)
+FID=$(az cognitiveservices account show -n <foundry-account> -g rg-agentic-ai-demos --query id -o tsv)
+SID=$(az search service show -n <search-service> -g rg-agentic-ai-demos --query id -o tsv)
+az role assignment create --assignee-object-id $PID --assignee-principal-type ServicePrincipal \
+  --role "Cognitive Services User" --scope $FID            # + "Cognitive Services OpenAI User"
+az role assignment create --assignee-object-id $PID --assignee-principal-type ServicePrincipal \
+  --role "Search Index Data Contributor" --scope $SID      # + Reader + "Search Service Contributor"
+```
+
+- The container has no `az` CLI, so the environment sidebar reads `ENV_SUBSCRIPTION_NAME`,
+  `ENV_REGION`, `ENV_RESOURCE_GROUP`, and `FOUNDRY_MODELS` from app settings instead.
+- **Windows gotcha:** `az containerapp up` may crash streaming the ACR build log
+  (a CLI/colorama cp1252 bug) — the image still builds and pushes; just run
+  `az containerapp create --image <acr>.azurecr.io/<image>` to finish.
+- **Public by default.** Anyone with the URL can run the demos, which call your
+  Foundry/Search and incur token cost. Restrict it before sharing widely
+  (Container Apps Entra auth via `az containerapp auth`, or IP restrictions).

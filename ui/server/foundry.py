@@ -178,6 +178,21 @@ def environment_summary(refresh: bool = False) -> dict:
                         "state": props.get("provisioningState"),
                     })
 
+    # Cloud fallback: a container has no az CLI — fill the panel from env vars.
+    subscription["name"] = subscription["name"] or env("ENV_SUBSCRIPTION_NAME")
+    subscription["id"] = subscription["id"] or env("ENV_SUBSCRIPTION_ID")
+    subscription["tenant"] = subscription["tenant"] or env("ENV_TENANT")
+    subscription["user"] = subscription["user"] or env("ENV_IDENTITY", default="managed identity")
+    subscription["state"] = subscription["state"] or ("Enabled" if subscription["name"] else None)
+    resource_group = resource_group or env("ENV_RESOURCE_GROUP")
+    region = region or env("ENV_REGION")
+    if not models:
+        for _nm in (env("FOUNDRY_MODELS", default="") or "").split(","):
+            _nm = _nm.strip()
+            if _nm:
+                models.append({"name": _nm, "state": "Succeeded",
+                               "version": None, "sku": None, "capacity": None})
+
     # Which model names the demos actually reference, so we can flag fallbacks.
     referenced = {
         "chat": env("MODEL_DEPLOYMENT_NAME", default="gpt-4o"),

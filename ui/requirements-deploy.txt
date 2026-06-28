@@ -1,0 +1,15 @@
+# Pinned to the versions verified locally — used by the container image (../Dockerfile).
+# Auth is via managed identity in Azure (azure-identity DefaultAzureCredential).
+azure-identity==1.25.3
+fastapi==0.133.0
+uvicorn[standard]==0.49.0
+httpx>=0.28
+jsonref==1.1.0
+python-dotenv==1.2.2
+azure-ai-projects[agents]==2.2.0
+azure-ai-agents==1.2.0b6
+mcp==1.28.0
+azure-search-documents==11.7.0b2
+azure-ai-contentsafety==1.0.0
+agent-framework-core==1.9.0
+agent-framework-openai==1.8.2
