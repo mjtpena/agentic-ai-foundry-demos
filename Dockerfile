@@ -8,15 +8,15 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 # Dependencies first (cached layer), pinned to versions verified locally.
-# Install top-level, UI, and hosted-agent deps so the hosted agent can run in-process.
+# Install top-level and UI deps. Hosted-agent packages are optional and intentionally not installed here
+# to avoid dependency conflicts in the base image; the demo includes a simulated hosted-agent fallback.
 COPY requirements.txt /tmp/requirements.txt
 COPY ui/requirements-deploy.txt /tmp/requirements-deploy.txt
-COPY day1/demo4_hosted_agent/requirements.txt /tmp/hosted-requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt -r /tmp/requirements-deploy.txt -r /tmp/hosted-requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt -r /tmp/requirements-deploy.txt
 
 # App code (.dockerignore excludes .venv / .env / .git / etc.)
 COPY . /app
 
 EXPOSE 8000
-# Start the hosted-agent in the background (if present) and then start the UI server.
-CMD ["sh", "-c", "python day1/demo4_hosted_agent/agent.py & exec python -m uvicorn ui.server.main:app --host 0.0.0.0 --port 8000"]
+# Start the UI server. Hosted-agent simulation runs in-process from the app code when needed.
+CMD ["python", "-m", "uvicorn", "ui.server.main:app", "--host", "0.0.0.0", "--port", "8000"]
