@@ -53,9 +53,8 @@ def run(stream: EventStream, payload: dict) -> None:
             extra_body={"agent_reference": {"name": agent.name, "type": "agent_reference"}},
         )
         stream.answer(response.output_text)
-
-        project.agents.delete_version(agent_name=agent.name, agent_version=agent.version)
-        stream.status("Agent version deleted (cleanup)", kind="ok")
+ 
+        stream.status(f"Agent '{agent.name}' v{agent.version} persists in Foundry — view in portal", kind="ok")
     finally:
         for c in (openai_client, project):
             try:

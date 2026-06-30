@@ -80,6 +80,5 @@ def run(stream: EventStream, payload: dict) -> None:
         for m in messages:
             if m.role == "assistant" and m.text_messages:
                 stream.answer(m.text_messages[-1].text.value)
-
-        client.delete_agent(agent.id)
-        stream.status("Agent cleaned up", kind="ok")
+ 
+        stream.status(f"Agent '{agent.id}' persists in Foundry — view in portal", kind="ok")

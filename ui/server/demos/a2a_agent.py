@@ -141,8 +141,7 @@ def _run_connection_a2a(stream: EventStream, message: str, connection_id: str) -
                                    kind="toolcall", call_id=getattr(item, "call_id", None))
             elif etype == "response.completed":
                 stream.emit("token_done", {})
-        project.agents.delete_version(agent_name=agent.name, agent_version=agent.version)
-        stream.status("Agent version deleted (cleanup)", kind="ok")
+        stream.status(f"Agent '{agent.name}' v{agent.version} persists in Foundry — view in portal", kind="ok")
     finally:
         for c in (openai_client, project):
             try:
