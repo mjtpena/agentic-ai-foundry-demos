@@ -10,6 +10,11 @@ const ICONS = {
   'agentic-retrieval':'<circle cx="11" cy="11" r="7"/><path d="M20 20l-4.3-4.3"/>',
   'agent-framework':'<circle cx="12" cy="5" r="2.3"/><circle cx="5.5" cy="18" r="2.3"/><circle cx="18.5" cy="18" r="2.3"/><path d="M12 7.3v3.4M12 11l-5 5.1M12 11l5 5.1"/>',
   'guardrails':'<path d="M12 3l8 2.8v6.2c0 4.4-3.2 7.7-8 9-4.8-1.3-8-4.6-8-9V5.8z"/>',
+  'evaluations':'<rect x="6" y="3" width="12" height="18" rx="1.5"/><path d="M9 3.5h6V6H9zM9 11l1.6 1.6L13.5 9M9 16h5"/>',
+  'red-team':'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 1.5v3.5M12 19v3.5M1.5 12h3.5M19 12h3.5"/>',
+  'tracing':'<path d="M4 4v16M4 8h11M4 13h7M4 18h13"/><circle cx="15" cy="8" r="1.6"/><circle cx="11" cy="13" r="1.6"/><circle cx="17" cy="18" r="1.6"/>',
+  'entra-agent-id':'<rect x="4" y="4" width="16" height="16" rx="2"/><circle cx="12" cy="10" r="2.4"/><path d="M8 16.5a4 4 0 0 1 8 0"/>',
+  'advanced-guardrails':'<path d="M12 3l8 2.8v6.2c0 4.4-3.2 7.7-8 9-4.8-1.3-8-4.6-8-9V5.8z"/><path d="M9 11.5l2 2 4-4"/>',
   agent:'<rect x="5" y="7" width="14" height="11" rx="2"/><path d="M12 4v3M9.5 12h.01M14.5 12h.01M9.5 15.5h5M3 12v2M21 12v2"/>',
   model:'<rect x="7" y="7" width="10" height="10" rx="1"/><path d="M9.5 2.5v3M14.5 2.5v3M9.5 18.5v3M14.5 18.5v3M2.5 9.5h3M2.5 14.5h3M18.5 9.5h3M18.5 14.5h3"/>',
   tool:'<path d="M14.5 6.5a3.5 3.5 0 0 0 4.6 4.6L9.8 20.4a2.2 2.2 0 0 1-3.1-3.1L16 7.9a3.5 3.5 0 0 1-1.5-1.4z"/>',
@@ -467,6 +472,68 @@ function buildControls(demo, ctx){
           message:'Status unavailable — start the server and re-check.', onRecheck:refresh})); });
     };
     refresh();
+  }
+  else if(demo.id==='evaluations'){
+    const btn = runBtn('▶  Run evaluation','grad');
+    btn.onclick = ()=> ctx.run('run',{model:ctx.getModel()});
+    c.append(
+      h('div',{class:'field'},h('label',{},'Evaluates a built-in dataset of agent answers'),
+        h('div',{class:'setup-msg'},'Row 2 hallucinates a CEO and row 4 gives unsafe advice — watch groundedness drop and the safety severities rise.')),
+      modelPicker(ctx,{openaiOnly:true, label:'Judge model (model-as-judge quality scoring)'}),
+      h('div',{class:'row',style:'margin-top:10px'},btn));
+    ctx.gauges = h('div',{class:'gauges'});
+    ctx.extra.append(h('div',{class:'panel card'}, cardTitle('Safety severity · 0–7','guardrails'), ctx.gauges));
+    setPH(ctx.gauges,'Run the evaluation to see safety severities.');
+  }
+  else if(demo.id==='red-team'){
+    const btn = runBtn('🛡  Launch red-team scan','grad');
+    btn.onclick = ()=> ctx.run('run',{model:ctx.getModel()});
+    c.append(
+      modelPicker(ctx,{label:'Target model (the scan attacks this deployment)'}),
+      h('div',{class:'field'},h('label',{},'Attack harness'),
+        h('div',{class:'setup-msg'},'4 risk categories × 4 attack strategies (Baseline, Base64, leetspeak, ROT13) = 16 attacks. A well-aligned model should refuse them all — Attack Success Rate 0%.')),
+      h('div',{class:'row',style:'margin-top:10px'},btn));
+    ctx.gauges = h('div',{class:'gauges'});
+    ctx.extra.append(h('div',{class:'panel card'}, cardTitle('Attack Success Rate · by risk category','red-team'), ctx.gauges));
+    setPH(ctx.gauges,'Launch a scan to see ASR per category (0% = all attacks refused).');
+  }
+  else if(demo.id==='tracing'){
+    const input = h('input',{type:'text',value:"What's a good 3-item travel checklist for Reykjavik in winter?"});
+    const btn = runBtn('▶  Run traced agent','grad');
+    btn.onclick = ()=> input.value.trim() && ctx.run('run',{question:input.value.trim(),model:ctx.getModel()});
+    c.append(h('div',{class:'field'},h('label',{},'Question (the agent runs plan → tool → answer under OpenTelemetry)'),input),
+      modelPicker(ctx,{openaiOnly:true, label:'Model'}),
+      h('div',{class:'row',style:'margin-top:10px'},btn),
+      h('div',{class:'setup-msg',style:'margin-top:10px'},'Spans (operation · duration · tokens) stream into the Foundry trace panel →'));
+  }
+  else if(demo.id==='entra-agent-id'){
+    const btn = runBtn('🔑  Inspect agent identity','grad');
+    btn.onclick = ()=> ctx.run('run',{});
+    c.append(
+      h('div',{class:'field'},h('label',{},'Keyless Entra identity'),
+        h('div',{class:'setup-msg'},"Acquires an Entra access token (no keys), decodes its claims — who the agent is (oid / appid / tenant) and what it may call (audience / scopes) — then lists the RBAC role assignments the identity holds.")),
+      h('div',{class:'row',style:'margin-top:10px'},btn));
+  }
+  else if(demo.id==='advanced-guardrails'){
+    const btn = runBtn('🛡  Run all guardrails','grad');
+    btn.onclick = ()=> ctx.run('run',{});
+    const ta = h('textarea',{placeholder:'…or screen your own text for harm, PII and protected material'});
+    const screen = runBtn('Screen this text');
+    screen.onclick = ()=> ta.value.trim() && ctx.run('run',{text:ta.value.trim()});
+    const samples = {'PII':'Call me at 425-555-0182 or email jane.doe@contoso.com; my SSN is 123-45-6789.',
+      'Copyrighted text':'Tomorrow, and tomorrow, and tomorrow, creeps in this petty pace from day to day.',
+      'Harmful':'I will find you and make you regret it. You are worthless.'};
+    c.append(
+      h('div',{class:'field'},h('label',{},'Full suite'),
+        h('div',{class:'setup-msg'},'Runs indirect prompt injection (XPIA), protected material (text & code), groundedness, and PII redaction on curated scenarios — all live Foundry / Language endpoints.')),
+      h('div',{class:'row',style:'margin-top:10px'},btn),
+      h('div',{style:'height:14px'}),
+      h('div',{class:'field'},h('label',{},'Screen custom text (harm · PII · protected material)'),ta),
+      h('div',{class:'row',style:'margin-top:10px'},screen),
+      sampleChips(Object.keys(samples), k=>{ta.value=samples[k];}));
+    ctx.gauges = h('div',{class:'gauges'});
+    ctx.extra.append(h('div',{class:'panel card'}, cardTitle('Harm severity (custom screen) · 0–7','guardrails'), ctx.gauges));
+    setPH(ctx.gauges,'Severities appear when you screen custom text.');
   }
 
   // View source — opens a wide modal (available for all demos)

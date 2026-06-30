@@ -109,6 +109,76 @@ CATALOG = [
         "services": ["contentsafety", "blocklist", "promptshield"],
         "status": "ready",
     },
+    {
+        "id": "evaluations",
+        "day": 3,
+        "number": 17,
+        "slide": 40,
+        "title": "Evaluations",
+        "capability": "Quality + safety scorecard",
+        "summary": "Foundry's two evaluator families over a dataset of agent answers: "
+                   "model-as-judge quality (1–5) and Content Safety risk scores (0–7). "
+                   "A planted hallucination and unsafe answer get caught.",
+        "foundry": ["azure-ai-evaluation", "Quality evaluators", "Risk & safety"],
+        "services": ["evaluation", "model", "contentsafety"],
+        "status": "ready",
+    },
+    {
+        "id": "red-team",
+        "day": 3,
+        "number": 18,
+        "slide": 41,
+        "title": "AI Red Teaming",
+        "capability": "Automated adversarial scan",
+        "summary": "The AI Red Teaming Agent fires attack objectives × PyRIT-style "
+                   "strategies (Base64, leetspeak, ROT13) at the live model and reports "
+                   "an Attack Success Rate scorecard. Low ASR = strong guardrails.",
+        "foundry": ["azure-ai-evaluation", "RedTeam", "Content Safety"],
+        "services": ["redteam", "model", "contentsafety"],
+        "status": "ready",
+    },
+    {
+        "id": "tracing",
+        "day": 3,
+        "number": 19,
+        "slide": 16,
+        "title": "Observability",
+        "capability": "OpenTelemetry agent traces",
+        "summary": "A multi-step agent turn (plan → tool → answer) traced with "
+                   "OpenTelemetry — spans, durations and token usage — the same data the "
+                   "Control Plane Observability pane reads from Application Insights.",
+        "foundry": ["OpenTelemetry", "Azure Monitor", "Control Plane"],
+        "services": ["tracing", "model", "tools"],
+        "status": "ready",
+    },
+    {
+        "id": "entra-agent-id",
+        "day": 3,
+        "number": 20,
+        "slide": 45,
+        "title": "Entra Agent ID",
+        "capability": "Keyless identity + RBAC",
+        "summary": "Secure agents with Microsoft Entra: acquire a keyless token, decode "
+                   "its claims (who the agent is), and list the RBAC role assignments "
+                   "(what it may do) — least privilege, fully auditable.",
+        "foundry": ["Microsoft Entra ID", "Managed identity", "Azure RBAC"],
+        "services": ["entra", "rbac", "identity"],
+        "status": "ready",
+    },
+    {
+        "id": "advanced-guardrails",
+        "day": 3,
+        "number": 21,
+        "slide": 49,
+        "title": "Advanced Guardrails",
+        "capability": "Output + boundary protection",
+        "summary": "Beyond input moderation: indirect prompt injection (XPIA) in retrieved "
+                   "docs, protected-material detection (text & code), groundedness, and PII "
+                   "redaction — the output-side guardrails for enterprise agents.",
+        "foundry": ["Prompt Shields (XPIA)", "Protected material", "PII (Language)"],
+        "services": ["contentsafety", "promptshield", "pii"],
+        "status": "ready",
+    },
 ]
 
 BY_ID = {d["id"]: d for d in CATALOG}

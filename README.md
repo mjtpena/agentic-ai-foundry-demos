@@ -1,4 +1,4 @@
-# Accelerate Agentic AI — all 16 demos, end to end
+# Accelerate Agentic AI — all 22 demos, end to end
 
 Runnable, slide-faithful implementations of **every demo** across the three-day
 *Accelerate Agentic AI* workshop, plus a one-command Azure CLI provisioner that
@@ -68,6 +68,16 @@ pip install --pre "azure-ai-projects[agents]" azure-ai-agents mcp
 | 14 | Create a Guardrail policy | 23 | `day3/demo14_guardrail_policy/create_guardrail_policy.sh` |
 | 15 | View and fix compliance violations | 26 | runbook · `day3/demo15_fix_compliance_violations.md` |
 | 16 | Configure guardrails & controls | 49 | `python day3/demo16_guardrails_content_safety/configure_content_safety.py` |
+| 17 | Evaluate, monitor & optimize agents | 40 | `python day3/demo17_evaluations/evaluate_agent.py` |
+| 18 | AI Red Teaming Agent | 41 | `python day3/demo18_red_team/run_red_team.py` |
+| 19 | Agent observability (OpenTelemetry) | 16 | `python day3/demo19_observability/trace_agent.py` |
+| 20 | Secure agents with Entra Agent ID (+ Agent 365) | 45 | `python day3/demo20_entra_agent_id/inspect_identity.py` · runbooks |
+| 21 | Advanced Guardrails (XPIA · protected material · PII) | 49 | `python day3/demo21_advanced_guardrails/advanced_guardrails.py` |
+| 22 | Purview & DLP for AI agents | 26 | runbook · `day3/demo22_purview_dlp/README.md` |
+
+Demos 17–22 round out **Module 7/8** (evaluate · red-team · observe · secure with
+Entra + Agent 365 · advanced guardrails · Purview/DLP). 17–21 also run in the
+live console (`ui/`); 13, 15, 20b and 22 are portal runbooks.
 
 ## 4 · Authentication model
 Every Python demo authenticates with **`DefaultAzureCredential`** / **`AzureCliCredential`**

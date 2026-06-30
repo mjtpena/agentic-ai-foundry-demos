@@ -30,3 +30,20 @@ azure-search-documents>=11.7.0b1
 
 # Day 3 #16 guardrails / content safety
 azure-ai-contentsafety>=1.0.0
+
+# Day 3 #19 observability — OpenTelemetry tracing of agent runs.
+# (azure-monitor-opentelemetry is optional: only needed to export spans to
+#  Application Insights / the Control Plane Observability pane.)
+opentelemetry-sdk>=1.27
+# azure-monitor-opentelemetry>=1.6        # optional cloud export
+
+# azure-ai-inference powers the observability demo + the unified UI console.
+# Published as beta only (no stable 1.0.0 yet), so pin to the beta floor:
+azure-ai-inference>=1.0.0b9
+
+# Day 3 #17 evaluations · #18 AI Red Teaming Agent — Foundry evaluation SDK.
+# The live console runs always-on variants of these (no extra deps), so this is
+# only needed to run the standalone scripts directly. It's heavy (RedTeam pulls
+# in PyRIT), so install it on demand rather than as a base dependency:
+#   pip install azure-ai-evaluation               # demo 17 evaluators
+#   pip install "azure-ai-evaluation[redteam]"    # demo 18 AI Red Teaming Agent

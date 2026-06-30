@@ -25,6 +25,11 @@ from .demos import (
     agentic_retrieval,
     a2a_agent,
     hosted_agent,
+    evaluations,
+    red_team,
+    observability,
+    entra_agent_id,
+    advanced_guardrails,
 )
 from .codeview import get_code
 
@@ -39,6 +44,11 @@ DEMO_MODULES = {
     "agentic-retrieval": agentic_retrieval,
     "a2a-agent": a2a_agent,
     "hosted-agent": hosted_agent,
+    "evaluations": evaluations,
+    "red-team": red_team,
+    "tracing": observability,
+    "entra-agent-id": entra_agent_id,
+    "advanced-guardrails": advanced_guardrails,
 }
 
 app = FastAPI(title="Foundry Live Demo Console", version="1.0.0")

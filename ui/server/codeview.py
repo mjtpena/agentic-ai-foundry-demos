@@ -25,6 +25,13 @@ DEMO_SOURCES = {
     "agentic-retrieval": "ui/server/demos/agentic_retrieval.py",
     "agent-framework": "ui/server/demos/agent_framework.py",
     "guardrails": "ui/server/demos/guardrails.py",
+    # Day 3 governance/security demos — View Source shows the real, slide-faithful
+    # Foundry-SDK standalone scripts (the console runs always-on variants).
+    "evaluations": "day3/demo17_evaluations/evaluate_agent.py",
+    "red-team": "day3/demo18_red_team/run_red_team.py",
+    "tracing": "day3/demo19_observability/trace_agent.py",
+    "entra-agent-id": "day3/demo20_entra_agent_id/inspect_identity.py",
+    "advanced-guardrails": "day3/demo21_advanced_guardrails/advanced_guardrails.py",
 }
 
 # Foundry SDK identifiers — coloured at the token level and used to flag lines.
@@ -52,6 +59,16 @@ FOUNDRY_IDENTS = [
     "A2AAgent", "AzureAIAgentClient",
     # Entra ID credentials
     "DefaultAzureCredential", "AzureCliCredential", "ManagedIdentityCredential",
+    "get_bearer_token_provider",
+    # azure-ai-evaluation (Foundry evaluations + AI Red Teaming Agent)
+    "GroundednessEvaluator", "RelevanceEvaluator", "CoherenceEvaluator",
+    "FluencyEvaluator", "ViolenceEvaluator", "HateUnfairnessEvaluator",
+    "SexualEvaluator", "SelfHarmEvaluator", "evaluate",
+    "RedTeam", "RiskCategory", "AttackStrategy",
+    # OpenTelemetry tracing (Foundry observability)
+    "TracerProvider", "InMemorySpanExporter", "ConsoleSpanExporter",
+    "SimpleSpanProcessor", "configure_azure_monitor", "start_as_current_span",
+    "get_tracer", "set_tracer_provider",
 ]
 _FOUNDRY_IDENT_SET = frozenset(FOUNDRY_IDENTS)
 
@@ -59,6 +76,7 @@ _FOUNDRY_IDENT_SET = frozenset(FOUNDRY_IDENTS)
 FOUNDRY_LINE_MARKERS = FOUNDRY_IDENTS + [
     "azure.ai.projects", "azure.ai.agents", "azure.ai.contentsafety",
     "azure.search.documents", "agent_framework", "agent_reference",
+    "azure.ai.evaluation", "azure.monitor.opentelemetry", "opentelemetry",
 ]
 
 
