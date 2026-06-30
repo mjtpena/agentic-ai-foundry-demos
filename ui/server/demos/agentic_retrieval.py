@@ -211,21 +211,27 @@ def run(stream: EventStream, payload: dict) -> None:
 
     references = getattr(result, "references", None) or []
     for ref in references:
-        # Debug: log all available attributes
-        ref_attrs = {k: v for k, v in ref.__dict__.items() if not k.startswith('_')}
-        stream.foundry("Reference attrs", str(list(ref_attrs.keys())), kind="debug")
-        
-        # Try multiple field names for the source text
-        source_data = (
-            getattr(ref, "source_data", None) or 
-            getattr(ref, "text", None) or 
-            getattr(ref, "content", None) or
-            getattr(ref, "data", None) or
-            ""
-        )
-        source_data = str(source_data or "")
         ref_id = str(getattr(ref, "ref_id", getattr(ref, "id", "?")))
         doc_key = getattr(ref, "doc_key", None)
+        
+        # The Knowledge Source was defined with source_data_fields: id, page_chunk, page_number
+        # Try to extract the page_chunk (the actual document text)
+        source_data = ""
+        
+        # Check if it's a dict-like structure
+        if hasattr(ref, "source_data") and isinstance(ref.source_data, dict):
+            source_data = ref.source_data.get("page_chunk", "")
+        else:
+            # Try direct attributes
+            source_data = (
+                getattr(ref, "page_chunk", None) or
+                getattr(ref, "source_data", None) or
+                getattr(ref, "content", None) or
+                getattr(ref, "text", None) or
+                ""
+            )
+        
+        source_data = str(source_data or "")
         score = getattr(ref, "score", None)
         
         # Build title with score if available
@@ -236,7 +242,7 @@ def run(stream: EventStream, payload: dict) -> None:
         stream.citation(
             ref_id=ref_id,
             title=title,
-            text=source_data,  # Send full text, not truncated
+            text=source_data,
             page=doc_key,
         )
     
