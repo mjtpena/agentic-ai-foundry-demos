@@ -60,6 +60,68 @@ def env(name: str, *fallbacks: str, default: str | None = None) -> str | None:
     return default
 
 
+# --------------------------------------------------------------------------- #
+# Runtime configuration (the UI "Foundry configuration" modal)
+# --------------------------------------------------------------------------- #
+# Maps the modal's field keys to the canonical environment variables the demos
+# read. Saving applies values to the live process and persists them to
+# .env.local (which load_env() loads with override=True on the next read).
+CONFIG_KEYS: dict[str, str] = {
+    "project_endpoint": "PROJECT_ENDPOINT",
+    "account_endpoint": "FOUNDRY_ACCOUNT_ENDPOINT",
+    "search_endpoint": "SEARCH_ENDPOINT",
+    "a2a_connection_id": "A2A_PROJECT_CONNECTION_ID",
+}
+
+
+def current_config() -> dict:
+    """Current value of each configurable endpoint, for pre-filling the modal."""
+    load_env()
+    return {ui_key: os.environ.get(env_key, "") for ui_key, env_key in CONFIG_KEYS.items()}
+
+
+def update_config(values: dict) -> dict:
+    """Apply config from the UI: set live os.environ and persist to .env.local.
+
+    Empty fields are ignored (existing values are preserved, never cleared).
+    """
+    global _ENV_SUMMARY_CACHE
+    load_env()
+    applied: dict[str, str] = {}
+    for ui_key, env_key in CONFIG_KEYS.items():
+        if ui_key not in values:
+            continue
+        val = (values.get(ui_key) or "").strip()
+        if val:
+            os.environ[env_key] = val
+            applied[env_key] = val
+    if applied:
+        _persist_env_local(applied)
+        _ENV_SUMMARY_CACHE = None  # force the sidebar to rebuild on next read
+    return {"ok": True, "applied": sorted(applied), "config": current_config()}
+
+
+def _persist_env_local(values: dict) -> None:
+    """Merge KEY=value pairs into REPO_ROOT/.env.local, preserving other lines."""
+    path = REPO_ROOT / ".env.local"
+    out: list[str] = []
+    seen: set[str] = set()
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#") and "=" in stripped:
+                key = stripped.split("=", 1)[0].strip()
+                if key in values:
+                    out.append(f"{key}={values[key]}")
+                    seen.add(key)
+                    continue
+            out.append(line)
+    for key, val in values.items():
+        if key not in seen:
+            out.append(f"{key}={val}")
+    path.write_text("\n".join(out) + "\n", encoding="utf-8")
+
+
 def get_credential():
     """DefaultAzureCredential — works from the signed-in az CLI session."""
     from azure.identity import DefaultAzureCredential

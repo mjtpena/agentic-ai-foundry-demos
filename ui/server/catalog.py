@@ -29,7 +29,7 @@ CATALOG = [
                    "on :8088 via azd, then deploys to Foundry Agent Service unchanged.",
         "foundry": ["Hosted Agents", "agent-framework", "azd"],
         "services": ["agent", "model", "tools", "hosting"],
-        "status": "gated",
+        "status": "ready",
     },
     {
         "id": "mcp-tools",
@@ -68,7 +68,7 @@ CATALOG = [
                    "connection and summarizes its answer — keeping control of the turn.",
         "foundry": ["Foundry Agent Service", "A2A tool", "Project connections"],
         "services": ["agent", "model", "a2a", "connection"],
-        "status": "gated",
+        "status": "ready",
     },
     {
         "id": "agentic-retrieval",
@@ -113,7 +113,18 @@ CATALOG = [
 
 BY_ID = {d["id"]: d for d in CATALOG}
 
+# Assign a per-day demo number (1-based within each day) so the UI shows clean
+# "Day 2 · Demo 3" labels instead of the confusing global sequence
+# (…, 6, 7, 8, 9 & 10, 12, 16). Numbering follows CATALOG declaration order — the
+# intended teaching order — rather than the raw `number`, whose 910 sentinel
+# ("9 & 10") would otherwise sort after 12. Mutates CATALOG in place so the value
+# is included in the /api/demos payload.
+_per_day_count: dict[int, int] = {}
+for _d in CATALOG:
+    _per_day_count[_d["day"]] = _per_day_count.get(_d["day"], 0) + 1
+    _d["day_number"] = _per_day_count[_d["day"]]
+
 
 def demo_number_label(d: dict) -> str:
-    n = d["number"]
-    return "9 & 10" if n == 910 else str(n)
+    """Per-day demo label, e.g. '3' for Day 2 · Demo 3."""
+    return str(d.get("day_number") or d["number"])

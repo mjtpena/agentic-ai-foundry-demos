@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from ..foundry import env, get_credential
+from .. import inference
 from ..sse import EventStream
 
 AGENT_NAME = "day1-prompt-agent"
@@ -51,7 +52,8 @@ def _ask(stream: EventStream, openai, conversation_id: str, prompt: str) -> None
 
 
 def run(stream: EventStream, payload: dict) -> None:
-    model = env("PROMPT_AGENT_MODEL", "MODEL_DEPLOYMENT_NAME", default="gpt-4o")
+    default_model = env("PROMPT_AGENT_MODEL", "MODEL_DEPLOYMENT_NAME", default="gpt-4o")
+    model = inference.valid_agentservice_model((payload or {}).get("model") or default_model)
     mode = (payload or {}).get("mode", "scripted")
     project, openai = _clients()
     try:

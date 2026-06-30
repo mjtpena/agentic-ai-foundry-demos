@@ -72,8 +72,44 @@ const $ = (s,r=document)=>r.querySelector(s);
 async function init(){
   try{ DEMOS = await (await fetch('/api/demos')).json(); }catch{ DEMOS=[]; }
   renderNav(); renderWelcome();
+  refreshNavFlags();
   loadEnv();
   $('#env-refresh').addEventListener('click', ()=>loadEnv(true));
+  setupTopbarControls();
+}
+
+// The catalog marks some demos 'setup'/'gated', but readiness is live (e.g. the
+// agentic-retrieval knowledge base may already exist). Check each such demo's
+// /status and drop the SETUP badge when it's actually ready.
+function refreshNavFlags(){
+  DEMOS.filter(d=>d.status==='setup'||d.status==='gated').forEach(d=>{
+    fetch(`/api/demos/${d.id}/status`).then(r=>r.json()).then(s=>{
+      const item = document.querySelector(`.nav-item[data-id="${d.id}"]`);
+      if(!item) return;
+      const flag = item.querySelector('.nav-flag');
+      if(s && s.ready){ if(flag) flag.remove(); }
+      else if(!flag){ item.append(h('span',{class:'nav-flag'},'SETUP')); }
+    }).catch(()=>{});
+  });
+}
+
+// Command-bar controls: a sidebar collapse toggle (left, by the brand) and a
+// Foundry configuration button (right, by the environment chip).
+function setupTopbarControls(){
+  const brand = $('.brand');
+  if(brand){
+    const toggle = h('button',{class:'topbar-btn',title:'Toggle sidebar','aria-label':'Toggle sidebar'});
+    toggle.innerHTML = '<svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="4" height="14" rx="1"/><rect x="10" y="6" width="11" height="2" rx="1"/><rect x="10" y="11" width="11" height="2" rx="1"/><rect x="10" y="16" width="11" height="2" rx="1"/></svg>';
+    toggle.onclick = ()=>{ const sb=$('#sidebar'); if(sb) sb.classList.toggle('collapsed'); };
+    brand.insertBefore(toggle, brand.firstChild);
+  }
+  const right = $('#topbar-right');
+  if(right){
+    const configBtn = h('button',{class:'topbar-btn',title:'Foundry configuration','aria-label':'Foundry configuration'});
+    configBtn.innerHTML = '<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+    configBtn.onclick = showConfigModal;
+    right.appendChild(configBtn);
+  }
 }
 
 async function loadEnv(refresh){
@@ -81,6 +117,69 @@ async function loadEnv(refresh){
     ENV = await (await fetch('/api/environment'+(refresh?'?refresh=true':''))).json();
     renderEnv();
   }catch(e){ $('#env-body').innerHTML = '<div class="env-loading">Environment unavailable</div>'; }
+}
+
+function showConfigModal(){
+  let overlay = $('#config-overlay');
+  if(!overlay){
+    overlay = h('div',{class:'modal-overlay',id:'config-overlay'});
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.classList.remove('show'); };
+    const modal = h('div',{class:'modal',id:'config-modal'});
+    modal.innerHTML = `
+      <h2>Foundry configuration</h2>
+      <p class="modal-intro">Point the console at your Foundry resources. Saved values apply to the running
+         server and persist to <code>.env.local</code>.</p>
+      <div class="modal-section">
+        <label for="cfg-project-endpoint">Project endpoint</label>
+        <input type="text" id="cfg-project-endpoint" placeholder="https://&lt;account&gt;.services.ai.azure.com/api/projects/&lt;project&gt;">
+      </div>
+      <div class="modal-section">
+        <label for="cfg-account-endpoint">Account endpoint</label>
+        <input type="text" id="cfg-account-endpoint" placeholder="https://&lt;account&gt;.services.ai.azure.com">
+      </div>
+      <div class="modal-section">
+        <label for="cfg-search-endpoint">Search endpoint <span class="modal-hint">· Agentic Retrieval</span></label>
+        <input type="text" id="cfg-search-endpoint" placeholder="https://&lt;service&gt;.search.windows.net">
+      </div>
+      <div class="modal-section">
+        <label for="cfg-a2a-connection">A2A connection ID <span class="modal-hint">· A2A Agent</span></label>
+        <input type="text" id="cfg-a2a-connection" placeholder="/subscriptions/.../connections/...">
+      </div>
+      <div class="modal-footer">
+        <button class="btn ghost" id="cfg-cancel">Cancel</button>
+        <button class="btn" id="cfg-save">Save</button>
+      </div>`;
+    overlay.append(modal);
+    document.body.append(overlay);
+    $('#cfg-cancel').onclick = ()=> overlay.classList.remove('show');
+    $('#cfg-save').onclick = saveConfigModal;
+  }
+  // Pre-fill from the server's current configuration.
+  fetch('/api/config').then(r=>r.json()).then(cfg=>{
+    $('#cfg-project-endpoint').value = cfg.project_endpoint || '';
+    $('#cfg-account-endpoint').value = cfg.account_endpoint || '';
+    $('#cfg-search-endpoint').value  = cfg.search_endpoint  || '';
+    $('#cfg-a2a-connection').value   = cfg.a2a_connection_id|| '';
+  }).catch(()=>{});
+  overlay.classList.add('show');
+}
+
+async function saveConfigModal(){
+  const val = (sel)=>{ const e=$(sel); return e ? e.value.trim() : ''; };
+  const body = {
+    project_endpoint:  val('#cfg-project-endpoint'),
+    account_endpoint:  val('#cfg-account-endpoint'),
+    search_endpoint:   val('#cfg-search-endpoint'),
+    a2a_connection_id: val('#cfg-a2a-connection'),
+  };
+  const btn = $('#cfg-save');
+  if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
+  try{
+    await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    await loadEnv(true);  // refresh the environment sidebar with the new values
+  }catch(e){ /* keep the modal open so the user can retry */ }
+  if(btn){ btn.disabled=false; btn.textContent='Save'; }
+  const overlay = $('#config-overlay'); if(overlay) overlay.classList.remove('show');
 }
 
 // ---------- environment sidebar ------------------------------------------- //
@@ -137,7 +236,7 @@ function renderNav(){
     });
   }
 }
-function numLabel(d){ return d.number===910 ? '9·10' : String(d.number); }
+function numLabel(d){ return String(d.day_number || d.number); }
 
 function renderWelcome(){
   const grid = $('#welcome-grid'); if(!grid) return; grid.innerHTML='';
@@ -199,15 +298,17 @@ function buildControls(demo, ctx){
 
   if(demo.id==='prompt-agent'){
     const scripted = runBtn('▶  Run scripted memory test','grad');
-    scripted.onclick = ()=>{ ctx.session.conversation_id=null; ctx.run('run',{mode:'scripted'}); };
+    scripted.onclick = ()=>{ ctx.session.conversation_id=null; ctx.run('run',{mode:'scripted',model:ctx.getModel()}); };
     const input = h('input',{type:'text',placeholder:'Ask a follow-up that relies on memory…'});
     const send = runBtn('Send');
     send.onclick = ()=>{ if(!input.value.trim())return;
-      ctx.run('run',{mode:'chat',message:input.value.trim(),conversation_id:ctx.session.conversation_id},{keep:true}); input.value=''; };
+      ctx.run('run',{mode:'chat',message:input.value.trim(),conversation_id:ctx.session.conversation_id,model:ctx.getModel()},{keep:true}); input.value=''; };
     const fresh = runBtn('New conversation','ghost');
     fresh.onclick = ()=>{ ctx.session.conversation_id=null; clearConversation(ctx); };
     input.addEventListener('keydown',e=>{if(e.key==='Enter')send.click();});
     c.append(h('div',{class:'field'},h('label',{},'Scripted demo (France ▸ “the capital city”)'),scripted),
+      h('div',{style:'height:10px'}),
+      modelPicker(ctx,{openaiOnly:true, label:'Prompt-agent model (Foundry Agent Service)'}),
       h('div',{style:'height:10px'}),
       h('div',{class:'field'},h('label',{},'Or chat (memory persists across turns)'),
         h('div',{class:'row'}, input, send, fresh)));
@@ -215,16 +316,18 @@ function buildControls(demo, ctx){
   else if(demo.id==='mcp-tools'){
     const input = h('input',{type:'text',value:'Give me the Azure CLI commands to create an Azure Container App with a managed identity.'});
     const btn = runBtn('⚡  Ask the docs','grad');
-    btn.onclick = ()=> input.value.trim() && ctx.run('run',{prompt:input.value.trim()});
+    btn.onclick = ()=> input.value.trim() && ctx.run('run',{prompt:input.value.trim(),model:ctx.getModel()});
     c.append(h('div',{class:'field'},h('label',{},'Developer question (answered from live Microsoft Learn docs)'),input),
+      modelPicker(ctx,{openaiOnly:true, label:'MCP agent model (Foundry Agent Service)'}),
       h('div',{class:'row',style:'margin-top:10px'},btn),
       sampleChips(['How do I deploy a Foundry hosted agent?','What is Azure AI Search semantic ranker?'], v=>input.value=v));
   }
   else if(demo.id==='openapi-tool'){
     const input = h('input',{type:'text',value:'Seattle'});
     const btn = runBtn('Get live weather','grad');
-    btn.onclick = ()=> input.value.trim() && ctx.run('run',{city:input.value.trim()});
+    btn.onclick = ()=> input.value.trim() && ctx.run('run',{city:input.value.trim(),model:ctx.getModel()});
     c.append(h('div',{class:'field'},h('label',{},'City (the agent calls the live wttr.in API via its OpenAPI tool)'),input),
+      modelPicker(ctx,{openaiOnly:true, label:'OpenAPI agent model (Foundry Agent Service)'}),
       h('div',{class:'row',style:'margin-top:10px'},btn),
       sampleChips(['Tokyo','Dubai','London','Reykjavik'], v=>{input.value=v;btn.click();}));
   }
@@ -236,8 +339,9 @@ function buildControls(demo, ctx){
     const seg = h('div',{class:'seg'},
       h('button',{class:'on',onclick(){pick(this,'joker','Tell me a joke about a pirate.');}},'Joker (stream)'),
       h('button',{onclick(){pick(this,'tools',"I'm flying to Reykjavik. What should I pack, and what is 250 USD in EUR if the rate is 0.92?");}},'Tools + memory'));
-    btn.onclick = ()=> ctx.run('run',{mode,message:msg.value.trim()});
+    btn.onclick = ()=> ctx.run('run',{mode,message:msg.value.trim(),model:ctx.getModel()});
     c.append(h('div',{class:'field'},h('label',{},'Mode'),seg),h('div',{style:'height:12px'}),
+      modelPicker(ctx,{label:'Model (streams on any; Tools+memory uses GPT-4o)'}),
       h('div',{class:'field'},h('label',{},'Message'),msg),
       h('div',{class:'row',style:'margin-top:12px'},btn));
   }
@@ -260,13 +364,11 @@ function buildControls(demo, ctx){
     setPH(ctx.gauges, 'Run an analysis to see severity scores.');
   }
   else if(demo.id==='agentic-retrieval'){
-    const setupBtn = runBtn('① Set up knowledge base','grad');
-    const note = h('div',{class:'notice warn'},'Checking knowledge base status…');
+    const setupHost = h('div',{});
     const ta = h('textarea',{},'Why do suburban belts display larger December brightening than urban cores even though absolute light levels are higher downtown? Why is the Phoenix nighttime street grid so sharply visible from space, whereas large stretches of the interstate between midwestern cities remain comparatively dim?');
-    const runBtn2 = runBtn('② Retrieve (plan → subqueries → cite)','grad');
-    setupBtn.onclick = ()=> ctx.run('setup',{});
+    const runBtn2 = runBtn('Retrieve (plan → subqueries → cite)','grad');
     runBtn2.onclick = ()=> ta.value.trim() && ctx.run('run',{query:ta.value.trim()});
-    c.append(note, h('div',{class:'row'},setupBtn), h('div',{style:'height:12px'}),
+    c.append(setupHost,
       h('div',{class:'field'},h('label',{},'Multi-part question'),ta),
       h('div',{class:'row',style:'margin-top:10px'},runBtn2));
     ctx.subqs = h('div',{class:'subqs'}); ctx.cites = h('div',{class:'cites'});
@@ -275,44 +377,223 @@ function buildControls(demo, ctx){
       h('div',{class:'panel card'}, cardTitle('Citations','knowledge'), ctx.cites));
     setPH(ctx.subqs, 'Subqueries the planner generates appear here.');
     setPH(ctx.cites, 'Source citations appear here.');
-    // status check
-    fetch('/api/demos/agentic-retrieval/status').then(r=>r.json()).then(s=>{
-      note.className='notice '+(s.ready?'warn':'warn');
-      note.textContent = s.ready ? 'Knowledge base “'+(s.kb||'')+'” is ready — you can retrieve now. (Re-run setup any time; it’s idempotent.)'
-        : 'No knowledge base yet. Click “Set up knowledge base” once (creates index + sample docs + knowledge source + knowledge base).';
-    }).catch(()=>{note.textContent='Status unavailable — you can still run setup.';});
+    const refresh = ()=>{
+      setupHost.innerHTML='';
+      setupHost.append(setupCard({title:'Knowledge base', state:'checking', message:'Checking knowledge base…'}));
+      fetch('/api/demos/agentic-retrieval/status').then(r=>r.json()).then(s=>{
+        setupHost.innerHTML='';
+        if(s.ready){
+          runBtn2.disabled=false;
+          setupHost.append(setupCard({title:'Knowledge base', state:'ready',
+            message:'“'+esc(s.kb||'knowledge base')+'” is ready — retrieve below. Setup is idempotent; re-run it any time.',
+            onPrimary:()=>ctx.run('setup',{}), primaryLabel:'Re-run setup', onRecheck:refresh}));
+        }else{
+          runBtn2.disabled=true;
+          const needsEndpoint = /SEARCH_ENDPOINT/.test(s.reason||'');
+          setupHost.append(setupCard({title:'Knowledge base', state:'setup',
+            message: needsEndpoint
+              ? 'No Search endpoint configured yet. Set it, then run one-click setup.'
+              : 'No knowledge base yet. One-click setup creates the index, sample docs, knowledge source and knowledge base.',
+            steps: needsEndpoint ? [{text:'Add your <code>SEARCH_ENDPOINT</code> via <b>Open configuration</b>, then run setup.'}] : null,
+            onPrimary:()=>ctx.run('setup',{}), primaryLabel:'Set up knowledge base',
+            onConfig: needsEndpoint ? showConfigModal : null, onRecheck:refresh}));
+        }
+      }).catch(()=>{ setupHost.innerHTML='';
+        setupHost.append(setupCard({title:'Knowledge base', state:'setup',
+          message:'Status unavailable — you can still run setup.',
+          onPrimary:()=>ctx.run('setup',{}), primaryLabel:'Set up knowledge base', onRecheck:refresh})); });
+    };
+    ctx._onSetupDone = refresh;
+    refresh();
   }
   else if(demo.id==='a2a-agent'){
+    const setupHost = h('div',{});
     const input = h('input',{type:'text',value:'What can the secondary agent do?'});
     const btn = runBtn('▶  Ask via A2A','grad');
-    btn.onclick = ()=> ctx.run('run',{message:input.value.trim()});
-    const note = h('div',{class:'notice warn'},'Checking A2A connection…');
-    c.append(note, h('div',{class:'field'},h('label',{},'Question (Agent A may call the secondary agent)'),input),
+    btn.onclick = ()=> ctx.run('run',{message:input.value.trim(),model:ctx.getModel()});
+    c.append(setupHost, h('div',{class:'field'},h('label',{},'Question (Agent A may call the secondary agent)'),input),
+      modelPicker(ctx,{label:'Secondary agent (Agent B) model — Agent A stays on GPT-4o'}),
       h('div',{class:'row',style:'margin-top:10px'},btn));
-    fetch('/api/demos/a2a-agent/status').then(r=>r.json()).then(s=>{
-      if(s.ready){ note.className='notice warn'; note.textContent='A2A connection configured ✓'; btn.disabled=false; }
-      else{ note.className='notice err';
-        note.innerHTML='No A2A connection set. Configure a secondary agent first:<br><code>cd day2/demo8_a2a_agent\nA2A_TARGET_URL="https://your-agent/a2a" ./setup_a2a_connection.sh</code><br>then add <code>A2A_PROJECT_CONNECTION_ID</code> to .env and refresh.';
-        btn.disabled=true; }
-    }).catch(()=>{note.textContent='Status unavailable.';});
+    const refresh = ()=>{
+      setupHost.innerHTML='';
+      setupHost.append(setupCard({title:'A2A connection', state:'checking', message:'Checking A2A connection…'}));
+      fetch('/api/demos/a2a-agent/status').then(r=>r.json()).then(s=>{
+        setupHost.innerHTML='';
+        if(s.ready){ btn.disabled=false;
+          const msg = s.mode==='live-local'
+            ? 'Live secondary agent <b>'+esc(s.secondary||'Agent B')+'</b> is running in-container — Agent A calls it over a real A2A hop. Ask below.'
+            : 'Connection configured — ask via A2A below.';
+          setupHost.append(setupCard({title:'A2A · secondary agent', state:'ready',
+            message:msg, onRecheck:refresh}));
+        }else{ btn.disabled=true;
+          setupHost.append(setupCard({title:'A2A connection', state:'setup',
+            message:'Connect a secondary A2A-compatible agent through a Foundry project connection.',
+            steps:[
+              {text:'Create the connection, pointing it at your agent:', code:'cd day2/demo8_a2a_agent\nA2A_TARGET_URL="https://your-agent/a2a" ./setup_a2a_connection.sh'},
+              {text:'Add the printed <code>A2A_PROJECT_CONNECTION_ID</code> via <b>Open configuration</b> (or <code>.env</code>), then Re-check.'}],
+            onConfig:showConfigModal, onRecheck:refresh}));
+        }
+      }).catch(()=>{ setupHost.innerHTML='';
+        setupHost.append(setupCard({title:'A2A connection', state:'setup', message:'Status unavailable.', onRecheck:refresh})); });
+    };
+    refresh();
   }
   else if(demo.id==='hosted-agent'){
+    const setupHost = h('div',{});
     const input = h('input',{type:'text',value:'What time is it in Tokyo, and how long until 6pm there?'});
     const btn = runBtn('▶  Invoke hosted agent','grad');
-    btn.onclick = ()=> ctx.run('run',{message:input.value.trim()});
-    const note = h('div',{class:'notice warn'},'Checking local hosted-agent server (:8088)…');
-    c.append(note, h('div',{class:'field'},h('label',{},'Message (server-side Python tools decide the answer)'),input),
+    btn.onclick = ()=> ctx.run('run',{message:input.value.trim(),model:ctx.getModel()});
+    c.append(setupHost, h('div',{class:'field'},h('label',{},'Message (server-side Python tools decide the answer)'),input),
+      modelPicker(ctx,{openaiOnly:true, label:'Hosted-agent model (runs on Foundry Agent Service)'}),
       h('div',{class:'row',style:'margin-top:10px'},btn));
-    fetch('/api/demos/hosted-agent/status').then(r=>r.json()).then(s=>{
-      if(s.ready){ note.className='notice warn'; note.textContent='Hosted agent server is up on :8088 ✓'; }
-      else{ note.className='notice err';
-        note.innerHTML='Hosted-agent server not running. Start it in a terminal:<br><code>cd day1/demo4_hosted_agent\nazd ai agent run</code><br>then click Invoke. (Same code deploys to Foundry with <code>azd deploy</code>.)'; }
-    }).catch(()=>{note.textContent='Status unavailable.';});
+    const refresh = ()=>{
+      setupHost.innerHTML='';
+      setupHost.append(setupCard({title:'Local hosted-agent server', state:'checking', message:'Checking server on :8088…'}));
+      fetch('/api/demos/hosted-agent/status').then(r=>r.json()).then(s=>{
+        setupHost.innerHTML='';
+        if(s.ready){ btn.disabled=false;
+          setupHost.append(setupCard({title:'Hosted-agent server', state:'ready',
+            message:'Live hosted agent is running on :8088 (real Azure OpenAI model + server-side Python tools) — invoke below.', onRecheck:refresh}));
+        }else{ btn.disabled=true;
+          setupHost.append(setupCard({title:'Local hosted-agent server', state:'setup',
+            message:'The hosted agent runs as a local server first, then deploys to Foundry Agent Service unchanged.',
+            steps:[
+              {text:'Start the server in a terminal:', code:'cd day1/demo4_hosted_agent\nazd ai agent run'},
+              {text:'Click <b>Re-check</b>, then Invoke. Deploy the same code with <code>azd deploy</code>.'}],
+            onRecheck:refresh}));
+        }
+      }).catch(()=>{ setupHost.innerHTML='';
+        setupHost.append(setupCard({title:'Local hosted-agent server', state:'setup',
+          message:'Status unavailable — start the server and re-check.', onRecheck:refresh})); });
+    };
+    refresh();
   }
+
+  // View source — opens a wide modal (available for all demos)
+  const srcBtn = runBtn('View source','ghost');
+  srcBtn.onclick = ()=> showCodeModal(demo);
+  c.append(h('div',{class:'row'}, srcBtn));
+}
+
+// ---------- source-code modal --------------------------------------------- //
+const CODE_CACHE = {};
+function showCodeModal(demo){
+  let overlay = $('#code-overlay');
+  if(!overlay){
+    overlay = h('div',{class:'modal-overlay',id:'code-overlay'});
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.classList.remove('show'); };
+    const modal = h('div',{class:'modal modal-wide code-modal'});
+    modal.innerHTML = `
+      <div class="code-modal-head">
+        <span class="cm-title">${svgIcon('terminal')}<span id="cm-title-text">Source</span></span>
+        <span class="cm-file" id="cm-file"></span>
+        <span class="cm-spacer"></span>
+        <button class="btn ghost sm" id="cm-copy">Copy</button>
+        <button class="code-modal-close" id="cm-close" title="Close" aria-label="Close">✕</button>
+      </div>
+      <div class="code-modal-body" id="cm-body"></div>`;
+    overlay.append(modal);
+    document.body.append(overlay);
+    $('#cm-close').onclick = ()=> overlay.classList.remove('show');
+    $('#cm-copy').onclick = ()=>{
+      const raw = overlay._raw || '';
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(raw).then(()=>{ const b=$('#cm-copy'); b.textContent='Copied'; setTimeout(()=>{b.textContent='Copy';},1200); }).catch(()=>{});
+      }
+    };
+    document.addEventListener('keydown',(e)=>{ if(e.key==='Escape' && overlay.classList.contains('show')) overlay.classList.remove('show'); });
+  }
+  const body = $('#cm-body');
+  $('#cm-title-text').textContent = demo.title + ' · source';
+  overlay.classList.add('show');
+  const cached = CODE_CACHE[demo.id];
+  if(cached){ $('#cm-file').textContent = cached.filename||''; body.innerHTML = cached.inner; overlay._raw = cached.raw||''; body.scrollTop=0; return; }
+  $('#cm-file').textContent = '';
+  setPH(body, 'Loading source…');
+  fetch(`/api/demos/${demo.id}/code`).then(r=>r.json()).then(j=>{
+    if(j.error){ body.innerHTML = `<div class="notice err">${esc(j.error)}</div>`; return; }
+    $('#cm-file').textContent = j.filename || '';
+    overlay._raw = j.raw || '';
+    let inner;
+    if(j.html){ inner = '<div class="code-body">'+j.html+'</div>'; }
+    else if(j.raw){ inner = '<div class="code-body"><div class="hlcode"><pre>'+esc(j.raw)+'</pre></div></div>'; }
+    else { setPH(body,'Source unavailable'); return; }
+    body.innerHTML = inner; body.scrollTop = 0;
+    CODE_CACHE[demo.id] = {filename:j.filename, inner, raw:j.raw};
+  }).catch(()=>{ setPH(body,'Error loading source'); });
 }
 
 function sampleChips(items, onPick){
   return h('div',{class:'chips'}, ...items.map(t=>h('span',{class:'chip',onclick:()=>onPick(t)},t)));
+}
+
+// ---------- model picker (multi-publisher) -------------------------------- //
+let MODELS_CACHE = null;
+async function fetchModels(){
+  if(MODELS_CACHE) return MODELS_CACHE;
+  try{ MODELS_CACHE = await (await fetch('/api/models')).json(); }
+  catch{ MODELS_CACHE = {models:[{id:'gpt-4o',label:'GPT-4o',publisher:'OpenAI',tools:true}],default:'gpt-4o'}; }
+  return MODELS_CACHE;
+}
+// Adds a <select> of deployed models; sets ctx.getModel(). opts:{toolsOnly,label}
+function modelPicker(ctx, opts){
+  opts = opts||{};
+  const sel = h('select',{class:'model-select'}, h('option',{value:'__loading'},'Loading models…'));
+  ctx.getModel = ()=> (sel.value && sel.value!=='__loading') ? sel.value
+                      : ((MODELS_CACHE&&MODELS_CACHE.default)||'gpt-4o');
+  fetchModels().then(data=>{
+    const models = (data.models||[]).filter(m=>
+      (opts.toolsOnly ? m.tools : true) && (opts.openaiOnly ? m.publisher==='OpenAI' : true));
+    sel.innerHTML='';
+    if(!models.length){ sel.append(h('option',{value:'gpt-4o'},'GPT-4o · OpenAI')); return; }
+    models.forEach(m=>{
+      const o = h('option',{value:m.id}, `${m.label} · ${m.publisher}`);
+      if(m.id===data.default) o.selected=true;
+      sel.append(o);
+    });
+  });
+  return h('div',{class:'field'},
+    h('label',{}, opts.label||'Model', h('span',{class:'model-hint-inline'},' · switch publisher live')),
+    sel);
+}
+
+// ---------- setup card (gated demos) -------------------------------------- //
+function copyBtn(text){
+  const b = h('button',{class:'copy-btn',title:'Copy'},'Copy');
+  b.onclick = ()=>{
+    const done = ()=>{ b.textContent='Copied'; setTimeout(()=>{b.textContent='Copy';},1200); };
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(done).catch(()=>{}); }
+  };
+  return b;
+}
+function codeSnippet(code){
+  return h('div',{class:'code-snip'}, h('pre',{}, code), copyBtn(code));
+}
+// opts: {title, state:'ready'|'checking'|'setup', message(html), steps:[{text(html),code}],
+//        onPrimary, primaryLabel, onConfig, onRecheck}
+function setupCard(opts){
+  const state = opts.state||'setup';
+  const card = h('div',{class:'setup-card '+state});
+  const pillText = state==='ready'?'Ready':state==='checking'?'Checking…':'Setup required';
+  card.append(h('div',{class:'setup-head'},
+    h('span',{class:'setup-title'}, opts.title||'Setup'),
+    h('span',{class:'setup-pill '+(state==='ready'?'ok':state==='checking'?'wait':'todo')}, pillText)));
+  if(opts.message) card.append(h('div',{class:'setup-msg', html:opts.message}));
+  if(state!=='ready' && opts.steps && opts.steps.length){
+    const ol = h('ol',{class:'setup-steps'});
+    opts.steps.forEach(s=>{
+      const li = h('li',{}, h('div',{class:'setup-step-text', html:s.text}));
+      if(s.code) li.append(codeSnippet(s.code));
+      ol.append(li);
+    });
+    card.append(ol);
+  }
+  const actions = h('div',{class:'setup-actions'});
+  if(opts.onPrimary){ const b=h('button',{class:'btn sm'}, opts.primaryLabel||'Set up'); b.onclick=opts.onPrimary; actions.append(b); }
+  if(opts.onConfig){ const b=h('button',{class:'btn ghost sm'},'Open configuration'); b.onclick=opts.onConfig; actions.append(b); }
+  if(opts.onRecheck){ const b=h('button',{class:'btn ghost sm'},'Re-check'); b.onclick=opts.onRecheck; actions.append(b); }
+  if(actions.children.length) card.append(actions);
+  return card;
 }
 
 // ---------- run + SSE dispatch -------------------------------------------- //
@@ -339,7 +620,7 @@ async function runDemo(demo, action, payload, ctx, opts){
     subquery:d=>{ if(!ctx.subqs) return; unPH(ctx.subqs); const s=h('div',{class:'subq'}); s.innerHTML=svgIcon('search')+`<span>${esc(d.text)}</span>`; ctx.subqs.append(s); },
     verdict:d=>setVerdict(ctx, d),
     conversation:d=>{ ctx.session.conversation_id = d.id; },
-    setup_done:()=>{ const n=$('.notice',ctx.controls); if(n){n.className='notice warn'; n.textContent='Knowledge base ready ✓ — retrieve below.';} },
+    setup_done:()=>{ if(typeof ctx._onSetupDone==='function') ctx._onSetupDone(); refreshNavFlags(); },
     error:d=>{ addLog(ctx, '✗ '+d.message, 'error'); showError(ctx, d); },
     done:()=>setBusy(ctx, false),
   };

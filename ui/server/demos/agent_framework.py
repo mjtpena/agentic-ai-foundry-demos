@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 from typing import Annotated
 
+from .. import inference
 from ..foundry import env
 from ..sse import EventStream
 
@@ -19,7 +20,30 @@ API_VERSION = "2024-10-21"
 
 
 def run(stream: EventStream, payload: dict) -> None:
-    asyncio.run(_run_async(stream, payload or {}))
+    payload = payload or {}
+    # "joker" (plain streaming) runs model-switchable through the unified Azure AI
+    # inference client; "tools" stays on the Agent Framework (the framework's
+    # ai_function tools + AgentSession memory are its showcase, on Azure OpenAI).
+    if payload.get("mode") == "tools":
+        asyncio.run(_run_async(stream, payload))
+    else:
+        _joker_inference(stream, payload)
+
+
+def _joker_inference(stream: EventStream, payload: dict) -> None:
+    from azure.ai.inference.models import SystemMessage, UserMessage
+
+    model = inference.valid_model(payload.get("model"))
+    message = payload.get("message") or "Tell me a joke about a pirate."
+    stream.foundry("Model", inference.label_for(model), kind="model")
+    stream.foundry("Agent", "Joker", kind="agent")
+    stream.user(message)
+    stream.status(f"Streaming tokens from {inference.label_for(model)} via Azure AI inference…", kind="step")
+    for chunk in inference.stream_text(
+        model, [SystemMessage(content="You are good at telling jokes."), UserMessage(content=message)]
+    ):
+        stream.token(chunk)
+    stream.emit("token_done", {})
 
 
 async def _run_async(stream: EventStream, payload: dict) -> None:
