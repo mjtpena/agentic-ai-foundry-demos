@@ -210,7 +210,12 @@ def run(stream: EventStream, payload: dict) -> None:
         stream.foundry("Activity", label, kind="run")
 
     references = getattr(result, "references", None) or []
-    for ref in references:
+    stream.foundry("References count", len(references), kind="metric")
+    for i, ref in enumerate(references):
+        # Debug: log the reference structure
+        ref_dict = {k: v for k, v in ref.__dict__.items() if not k.startswith('_')}
+        stream.foundry(f"Ref {i} attrs", ", ".join(ref_dict.keys()), kind="debug")
+        
         ref_id = str(getattr(ref, "ref_id", getattr(ref, "id", "?")))
         doc_key = getattr(ref, "doc_key", None)
         
@@ -221,6 +226,7 @@ def run(stream: EventStream, payload: dict) -> None:
         # Check if it's a dict-like structure
         if hasattr(ref, "source_data") and isinstance(ref.source_data, dict):
             source_data = ref.source_data.get("page_chunk", "")
+            stream.foundry(f"Ref {i} source_data dict", list(ref.source_data.keys()), kind="debug")
         else:
             # Try direct attributes
             source_data = (
