@@ -724,7 +724,7 @@ function addCite(ctx, d){
   const headerText = h('div',{class:'cite-title'});
   headerText.innerHTML = `<strong>ref_id ${esc(d.ref_id)}</strong>` + 
     (d.page ? ` <span class="cite-meta">· page ${esc(d.page)}</span>` : '') +
-    (d.score != null ? ` <span class="cite-meta">· score ${(d.score*100).toFixed(0)}%</span>` : '');
+    (d.title ? ` <span class="cite-meta">· ${esc(d.title)}</span>` : '');
   header.append(headerText);
   
   // Content with the actual source text

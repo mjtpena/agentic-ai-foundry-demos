@@ -217,11 +217,16 @@ def run(stream: EventStream, payload: dict) -> None:
         doc_key = getattr(ref, "doc_key", None)
         score = getattr(ref, "score", None)
         
+        # Build title with score if available
+        title = ""
+        if score is not None:
+            title = f"Score: {score*100:.0f}%"
+        
         stream.citation(
             ref_id=ref_id,
+            title=title,
             text=source_data,  # Send full text, not truncated
             page=doc_key,
-            score=score,
         )
     
     stream.metric("Subqueries", subquery_count if subquery_count > 0 else len(activity))
