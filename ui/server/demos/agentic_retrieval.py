@@ -210,35 +210,25 @@ def run(stream: EventStream, payload: dict) -> None:
         stream.foundry("Activity", label, kind="run")
 
     references = getattr(result, "references", None) or []
-    stream.foundry("References count", len(references), kind="metric")
-    for i, ref in enumerate(references):
-        # Debug: log the reference structure
-        ref_dict = {k: v for k, v in ref.__dict__.items() if not k.startswith('_')}
-        stream.foundry(f"Ref {i} attrs", ", ".join(ref_dict.keys()), kind="debug")
-        
-        ref_id = str(getattr(ref, "ref_id", getattr(ref, "id", "?")))
+    for ref in references:
+        ref_id = str(getattr(ref, "id", "?"))
         doc_key = getattr(ref, "doc_key", None)
         
-        # The Knowledge Source was defined with source_data_fields: id, page_chunk, page_number
-        # Try to extract the page_chunk (the actual document text)
+        # source_data is a dict-like object with fields: id, page_chunk, page_number
         source_data = ""
+        score = None
         
-        # Check if it's a dict-like structure
-        if hasattr(ref, "source_data") and isinstance(ref.source_data, dict):
-            source_data = ref.source_data.get("page_chunk", "")
-            stream.foundry(f"Ref {i} source_data dict", list(ref.source_data.keys()), kind="debug")
-        else:
-            # Try direct attributes
-            source_data = (
-                getattr(ref, "page_chunk", None) or
-                getattr(ref, "source_data", None) or
-                getattr(ref, "content", None) or
-                getattr(ref, "text", None) or
-                ""
-            )
+        if hasattr(ref, "source_data"):
+            sd = ref.source_data
+            # Try to extract page_chunk from source_data
+            if hasattr(sd, "page_chunk"):
+                source_data = str(sd.page_chunk or "")
+            elif isinstance(sd, dict):
+                source_data = str(sd.get("page_chunk", ""))
         
-        source_data = str(source_data or "")
-        score = getattr(ref, "score", None)
+        # reranker_score for relevance
+        if hasattr(ref, "reranker_score"):
+            score = ref.reranker_score
         
         # Build title with score if available
         title = ""
