@@ -214,26 +214,32 @@ def run(stream: EventStream, payload: dict) -> None:
         ref_id = str(getattr(ref, "id", "?"))
         doc_key = getattr(ref, "doc_key", None)
         
-        # source_data is a dict-like object with fields: id, page_chunk, page_number
+        # Debug source_data structure
+        source_data_obj = getattr(ref, "source_data", None)
         source_data = ""
-        score = None
         
-        if hasattr(ref, "source_data"):
-            sd = ref.source_data
-            # Try to extract page_chunk from source_data
-            if hasattr(sd, "page_chunk"):
-                source_data = str(sd.page_chunk or "")
-            elif isinstance(sd, dict):
-                source_data = str(sd.get("page_chunk", ""))
+        if source_data_obj:
+            # Try different approaches
+            if hasattr(source_data_obj, "page_chunk"):
+                source_data = str(source_data_obj.page_chunk or "")
+            elif isinstance(source_data_obj, dict):
+                source_data = str(source_data_obj.get("page_chunk", ""))
+            else:
+                # Check what it actually is
+                source_data_type = type(source_data_obj).__name__
+                source_data_str = str(source_data_obj)[:200]
+                stream.foundry(f"Ref {ref_id} source_data type", source_data_type, kind="debug")
+                stream.foundry(f"Ref {ref_id} source_data str", source_data_str, kind="debug")
         
         # reranker_score for relevance
-        if hasattr(ref, "reranker_score"):
-            score = ref.reranker_score
+        score = getattr(ref, "reranker_score", None)
         
         # Build title with score if available
         title = ""
         if score is not None:
-            title = f"Score: {score*100:.0f}%"
+            # Score might be 0-1 range or 0-100
+            score_val = score if score <= 1 else score / 100
+            title = f"Score: {score_val*100:.0f}%"
         
         stream.citation(
             ref_id=ref_id,
