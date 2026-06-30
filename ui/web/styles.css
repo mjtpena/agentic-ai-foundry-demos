@@ -223,8 +223,14 @@ textarea{resize:vertical;min-height:62px;line-height:1.45}
 
 /* Citations / subqueries */
 .cites{display:flex;flex-direction:column;gap:8px}
-.cite{border:1px solid var(--stroke-2);border-left:2px solid var(--brand);border-radius:0 var(--radius) var(--radius) 0;padding:8px 10px;font-size:12.5px;background:var(--subtle)}
-.cite .cref{font-weight:600;color:var(--brand-fg);font-size:11.5px;margin-bottom:2px}
+.cite{border:1px solid var(--stroke-2);border-left:3px solid var(--brand);border-radius:var(--radius);overflow:hidden;background:var(--subtle);transition:all .15s ease}
+.cite:hover{border-left-color:var(--brand-hover);background:var(--layer-3)}
+.cite-header{padding:10px 11px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none}
+.cite-title{font-size:12px;font-weight:600;color:var(--brand-fg);display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+.cite-meta{font-size:11px;color:var(--ink-4);font-weight:400}
+.cite-content{max-height:0;overflow:hidden;transition:max-height .2s ease;padding:0 11px}
+.cite.expanded .cite-content{max-height:320px;padding:0 11px 10px 11px}
+.cite-text{font-size:12px;color:var(--ink-2);line-height:1.5;word-break:break-word;white-space:pre-wrap}
 .subqs{display:flex;flex-direction:column;gap:6px}
 .subq{background:var(--subtle);border:1px solid var(--stroke-2);border-radius:var(--radius);padding:6px 9px;font-size:12px;color:var(--ink-2);display:flex;gap:7px;align-items:flex-start}
 .subq .ic{width:14px;height:14px;color:var(--ink-4);margin-top:1px}

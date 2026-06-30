@@ -717,9 +717,34 @@ function setVerdict(ctx, d){
 function addCite(ctx, d){
   if(!ctx.cites) return;
   unPH(ctx.cites);
-  ctx.cites.append(h('div',{class:'cite'},
-    h('div',{class:'cref'},'ref_id '+d.ref_id+(d.page?(' · '+d.page):'')),
-    h('div',{}, d.text||'')));
+  const cite = h('div',{class:'cite'});
+  
+  // Header with ref_id and metadata, clickable to toggle expanded view
+  const header = h('div',{class:'cite-header'});
+  const headerText = h('div',{class:'cite-title'});
+  headerText.innerHTML = `<strong>ref_id ${esc(d.ref_id)}</strong>` + 
+    (d.page ? ` <span class="cite-meta">· page ${esc(d.page)}</span>` : '') +
+    (d.score != null ? ` <span class="cite-meta">· score ${(d.score*100).toFixed(0)}%</span>` : '');
+  header.append(headerText);
+  
+  // Content with the actual source text
+  const content = h('div',{class:'cite-content'});
+  const textEl = h('div',{class:'cite-text'});
+  textEl.textContent = d.text || '(no text)';
+  content.append(textEl);
+  
+  // Toggle expanded state
+  let expanded = false;
+  const toggle = ()=>{
+    expanded = !expanded;
+    cite.classList.toggle('expanded', expanded);
+    header.style.cursor = 'pointer';
+  };
+  header.addEventListener('click', toggle);
+  header.style.cursor = 'pointer';
+  
+  cite.append(header, content);
+  ctx.cites.append(cite);
 }
 function showError(ctx, d){
   const n = h('div',{class:'notice err'}, (d.message||'Error') + (d.hint?' ':''));

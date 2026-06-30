@@ -197,6 +197,7 @@ def run(stream: EventStream, payload: dict) -> None:
     stream.answer(answer)
 
     activity = getattr(result, "activity", None) or []
+    subquery_count = 0
     for step in activity:
         label = getattr(step, "type", None) or step.__class__.__name__
         q = getattr(step, "query", None) or getattr(step, "search", None)
@@ -204,13 +205,23 @@ def run(stream: EventStream, payload: dict) -> None:
             q = q.search
         if q:
             stream.subquery(str(q))
+            if "query" in str(label).lower() or "search" in str(label).lower():
+                subquery_count += 1
         stream.foundry("Activity", label, kind="run")
 
     references = getattr(result, "references", None) or []
     for ref in references:
+        # Extract full source data and metadata for interactive reference display
+        source_data = str(getattr(ref, "source_data", "") or "")
+        ref_id = str(getattr(ref, "ref_id", getattr(ref, "id", "?")))
+        doc_key = getattr(ref, "doc_key", None)
+        score = getattr(ref, "score", None)
+        
         stream.citation(
-            ref_id=str(getattr(ref, "ref_id", getattr(ref, "id", "?"))),
-            text=str(getattr(ref, "source_data", "") or "")[:300],
-            page=getattr(ref, "doc_key", None),
+            ref_id=ref_id,
+            text=source_data,  # Send full text, not truncated
+            page=doc_key,
+            score=score,
         )
-    stream.metric("Subqueries", sum(1 for s in activity if "query" in str(getattr(s, "type", "")).lower()) or len(activity))
+    
+    stream.metric("Subqueries", subquery_count if subquery_count > 0 else len(activity))
