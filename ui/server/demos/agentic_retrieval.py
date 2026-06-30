@@ -211,39 +211,12 @@ def run(stream: EventStream, payload: dict) -> None:
 
     references = getattr(result, "references", None) or []
     for ref in references:
+        # Note: Azure Knowledge Base API reference objects do not include source_data fields
+        # (id, page_chunk, page_number) even though they're configured in the knowledge source.
+        # We can only display ref_id, page number, and score from the reference object.
         ref_id = str(getattr(ref, "id", "?"))
         doc_key = getattr(ref, "doc_key", None)
-        
-        source_data = ""
         score = getattr(ref, "reranker_score", None)
-        
-        # Try to extract text from source_data using JSON serialization
-        source_data_obj = getattr(ref, "source_data", None)
-        if source_data_obj:
-            try:
-                import json
-                # Try to serialize to JSON to see structure
-                data_dict = {}
-                if hasattr(source_data_obj, "__dict__"):
-                    data_dict = source_data_obj.__dict__
-                elif isinstance(source_data_obj, dict):
-                    data_dict = source_data_obj
-                
-                # Look for text/content in the dict
-                for key in ["page_chunk", "content", "text", "data", "chunk"]:
-                    if key in data_dict:
-                        source_data = str(data_dict[key])
-                        break
-                
-                # If still empty, try any string-like value
-                if not source_data:
-                    for v in data_dict.values():
-                        if isinstance(v, str) and len(v) > 20:
-                            source_data = v
-                            break
-            except Exception as e:
-                # Fallback to empty
-                pass
         
         # Build title with score if available
         title = ""
@@ -252,10 +225,11 @@ def run(stream: EventStream, payload: dict) -> None:
             score_val = min(max(score, 0), 1) if score <= 1 else min(max(score / 100, 0), 1)
             title = f"Score: {int(score_val*100)}%"
         
+        # Display ref info with note that full text would require additional API calls
         stream.citation(
             ref_id=ref_id,
             title=title,
-            text=source_data[:500] if source_data else "",
+            text="(Source data not returned by API - see page " + str(doc_key or "?") + ")",
             page=doc_key,
         )
     
