@@ -211,8 +211,19 @@ def run(stream: EventStream, payload: dict) -> None:
 
     references = getattr(result, "references", None) or []
     for ref in references:
-        # Extract full source data and metadata for interactive reference display
-        source_data = str(getattr(ref, "source_data", "") or "")
+        # Debug: log all available attributes
+        ref_attrs = {k: v for k, v in ref.__dict__.items() if not k.startswith('_')}
+        stream.foundry("Reference attrs", str(list(ref_attrs.keys())), kind="debug")
+        
+        # Try multiple field names for the source text
+        source_data = (
+            getattr(ref, "source_data", None) or 
+            getattr(ref, "text", None) or 
+            getattr(ref, "content", None) or
+            getattr(ref, "data", None) or
+            ""
+        )
+        source_data = str(source_data or "")
         ref_id = str(getattr(ref, "ref_id", getattr(ref, "id", "?")))
         doc_key = getattr(ref, "doc_key", None)
         score = getattr(ref, "score", None)
