@@ -214,37 +214,42 @@ def run(stream: EventStream, payload: dict) -> None:
         ref_id = str(getattr(ref, "id", "?"))
         doc_key = getattr(ref, "doc_key", None)
         
-        # Debug source_data structure
-        source_data_obj = getattr(ref, "source_data", None)
         source_data = ""
-        
-        if source_data_obj:
-            # Try different approaches
-            if hasattr(source_data_obj, "page_chunk"):
-                source_data = str(source_data_obj.page_chunk or "")
-            elif isinstance(source_data_obj, dict):
-                source_data = str(source_data_obj.get("page_chunk", ""))
-            else:
-                # Check what it actually is
-                source_data_type = type(source_data_obj).__name__
-                source_data_str = str(source_data_obj)[:200]
-                stream.foundry(f"Ref {ref_id} source_data type", source_data_type, kind="debug")
-                stream.foundry(f"Ref {ref_id} source_data str", source_data_str, kind="debug")
-        
-        # reranker_score for relevance
         score = getattr(ref, "reranker_score", None)
+        
+        # Try to extract text from source_data
+        source_data_obj = getattr(ref, "source_data", None)
+        if source_data_obj:
+            try:
+                # source_data might be a dict/object with page_chunk attribute
+                if hasattr(source_data_obj, "page_chunk"):
+                    source_data = str(source_data_obj.page_chunk)
+                elif hasattr(source_data_obj, "__dict__"):
+                    # Try to find any field with "chunk" or "text" in the name
+                    attrs = source_data_obj.__dict__
+                    for k, v in attrs.items():
+                        if "chunk" in k.lower() or "content" in k.lower():
+                            source_data = str(v)
+                            break
+                    if not source_data:
+                        # Fallback: just use string representation
+                        source_data = str(source_data_obj)
+                else:
+                    source_data = str(source_data_obj)
+            except Exception:
+                pass
         
         # Build title with score if available
         title = ""
         if score is not None:
-            # Score might be 0-1 range or 0-100
-            score_val = score if score <= 1 else score / 100
+            # Clamp score to reasonable percentage
+            score_val = min(max(score, 0), 1) if score <= 1 else min(max(score / 100, 0), 1)
             title = f"Score: {score_val*100:.0f}%"
         
         stream.citation(
             ref_id=ref_id,
             title=title,
-            text=source_data,
+            text=source_data[:500] if source_data else "",  # Limit to 500 chars
             page=doc_key,
         )
     
