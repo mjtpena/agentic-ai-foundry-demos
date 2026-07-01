@@ -1,4 +1,4 @@
-"""Day 3 · Demo 16 — Guardrails & content safety (slide 49)."""
+"""Demo 16 — Guardrails & content safety (slide 49)."""
 from __future__ import annotations
 
 from ..foundry import account_endpoint, env, get_credential

@@ -1,7 +1,7 @@
-"""Day 2 · Demo 12 — Microsoft Agent Framework: streaming, tools, memory (slide 83).
+"""Demo 12 — Microsoft Agent Framework: streaming, tools, memory (slide 83).
 
 Adapted to the installed agent-framework 1.9.x surface:
-  • Azure OpenAI client = OpenAIChatCompletionClient(azure_endpoint=…, credential=…)
+  • Foundry model endpoint client = OpenAIChatCompletionClient(azure_endpoint=…, credential=…)
   • agent            = client.as_agent(instructions=…, name=…, tools=[…])
   • streaming        = agent.run(text, stream=True)  -> async chunks with .text
   • memory           = an AgentSession passed to agent.run(…, session=session)
@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 from typing import Annotated
 
-from ..foundry import account_endpoint, env
+from ..foundry import account_endpoint, env, selected_model
 from ..sse import EventStream
 
 API_VERSION = "2024-10-21"
@@ -54,7 +54,7 @@ async def _run_async(stream: EventStream, payload: dict) -> None:
     if not endpoint:
         stream.error("FOUNDRY_ACCOUNT_ENDPOINT is not set — run infra/provision first.")
         return
-    deployment = env("MODEL_DEPLOYMENT_NAME", "AZURE_AI_MODEL_DEPLOYMENT_NAME", default="gpt-4o")
+    deployment = selected_model(payload, "MODEL_DEPLOYMENT_NAME", "AZURE_AI_MODEL_DEPLOYMENT_NAME", default="gpt-4.1-mini")
     api_version = env("AZURE_OPENAI_API_VERSION", default=API_VERSION)
     mode = payload.get("mode", "joker")
 
@@ -62,7 +62,7 @@ async def _run_async(stream: EventStream, payload: dict) -> None:
         azure_endpoint=endpoint, credential=DefaultAzureCredential(),
         api_version=api_version, model=deployment,
     )
-    stream.foundry("Azure OpenAI", deployment, kind="model", endpoint=endpoint)
+    stream.foundry("Foundry model endpoint", deployment, kind="model", endpoint=endpoint)
 
     if mode == "tools":
         await _tools_demo(stream, client, ai_function, payload)

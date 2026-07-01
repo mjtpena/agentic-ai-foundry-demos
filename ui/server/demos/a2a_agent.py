@@ -1,4 +1,4 @@
-"""Day 2 · Demo 8 — Add an A2A agent endpoint (slide 35, preview).
+"""Demo 8 — Add an A2A agent endpoint (slide 35, preview).
 
 Two ways to run, both LIVE:
   • If A2A_PROJECT_CONNECTION_ID is set, Agent A uses the Foundry A2ATool to call
@@ -10,7 +10,7 @@ Two ways to run, both LIVE:
 """
 from __future__ import annotations
 
-from ..foundry import env, get_credential, project_endpoint
+from ..foundry import env, get_credential, project_endpoint, selected_model
 from ..sse import EventStream
 
 
@@ -30,7 +30,7 @@ def status() -> dict:
 
 def run(stream: EventStream, payload: dict) -> None:
     endpoint = project_endpoint()
-    model = env("FOUNDRY_MODEL_DEPLOYMENT_NAME", "MODEL_DEPLOYMENT_NAME", default="gpt-4o")
+    model = selected_model(payload, "FOUNDRY_MODEL_DEPLOYMENT_NAME", "MODEL_DEPLOYMENT_NAME", default="gpt-4.1-mini")
     connection_id = env("A2A_PROJECT_CONNECTION_ID")
     if not connection_id:
         # Simulate A2A behavior so the demo stays usable when no external A2A

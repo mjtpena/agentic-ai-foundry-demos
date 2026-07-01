@@ -1,4 +1,4 @@
-"""Day 2 · Demos 9 & 10 — Agentic retrieval (slides 51-61).
+"""Demos 9 & 10 — Agentic retrieval (slides 51-61).
 
 setup()  : create index + upload sample docs + knowledge source + knowledge base
 run()    : retrieve — query planning, parallel subqueries, citation-backed answer
@@ -6,7 +6,7 @@ status() : whether the knowledge base already exists
 """
 from __future__ import annotations
 
-from ..foundry import account_endpoint, env, get_credential, search_service_endpoint
+from ..foundry import account_endpoint, env, get_credential, search_service_endpoint, selected_model
 from ..sse import EventStream
 
 DEFAULT_QUERY = (
@@ -30,7 +30,7 @@ def _names():
         "ks": env("KNOWLEDGE_SOURCE_NAME", default="earth-at-night-ks"),
         "kb": env("KNOWLEDGE_BASE_NAME", default="earth-at-night-kb"),
         "embed": env("EMBEDDING_DEPLOYMENT", default="text-embedding-3-large"),
-        "chat": env("MODEL_DEPLOYMENT_NAME", default="gpt-4o"),
+        "chat": env("MODEL_DEPLOYMENT_NAME", default="gpt-4.1-mini"),
     }
 
 
@@ -81,6 +81,7 @@ def setup(stream: EventStream, payload: dict) -> None:
     )
 
     n = _names()
+    model_name = selected_model(payload, "MODEL_DEPLOYMENT_NAME", default="gpt-4.1-mini")
     if not n["search_endpoint"] or not n["foundry_endpoint"]:
         stream.error("SEARCH_ENDPOINT / FOUNDRY_ACCOUNT_ENDPOINT not set.")
         return
@@ -155,7 +156,7 @@ def setup(stream: EventStream, payload: dict) -> None:
                      hint="Install the preview pinned in requirements.txt.")
         return
     model = KnowledgeBaseAzureOpenAIModel(azure_open_ai_parameters=KBParams(
-        resource_url=n["foundry_endpoint"], deployment_name=n["chat"], model_name=n["chat"]))
+        resource_url=n["foundry_endpoint"], deployment_name=model_name, model_name=model_name))
     index_client.create_or_update_knowledge_base(KnowledgeBase(
         name=n["kb"], knowledge_sources=[KnowledgeSourceReference(name=n["ks"])],
         retrieval_reasoning_effort=KnowledgeRetrievalLowReasoningEffort(),

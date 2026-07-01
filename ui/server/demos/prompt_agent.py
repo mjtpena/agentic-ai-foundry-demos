@@ -1,7 +1,7 @@
-"""Day 1 · Demo 3 — Prompt agent with multi-turn memory (slide 84)."""
+"""Demo 3 — Prompt agent with multi-turn memory (slide 84)."""
 from __future__ import annotations
 
-from ..foundry import env, get_credential, project_endpoint
+from ..foundry import get_credential, project_endpoint, selected_model
 from ..sse import EventStream
 
 AGENT_NAME = "day1-prompt-agent"
@@ -51,20 +51,20 @@ def _ask(stream: EventStream, openai, conversation_id: str, prompt: str) -> None
 
 
 def run(stream: EventStream, payload: dict) -> None:
-    default_model = env("PROMPT_AGENT_MODEL", "MODEL_DEPLOYMENT_NAME", default="gpt-4o")
-    model = inference.valid_agentservice_model((payload or {}).get("model") or default_model)
-    mode = (payload or {}).get("mode", "scripted")
+    payload = payload or {}
+    model = selected_model(payload, "PROMPT_AGENT_MODEL", "MODEL_DEPLOYMENT_NAME", default="gpt-4.1-mini")
+    mode = payload.get("mode", "scripted")
     project, openai = _clients()
     try:
         _ensure_agent(stream, project, model)
         if mode == "chat":
-            conversation_id = (payload or {}).get("conversation_id")
+            conversation_id = payload.get("conversation_id")
             if not conversation_id:
                 conv = openai.conversations.create()
                 conversation_id = conv.id
                 stream.foundry("Conversation", conversation_id, kind="conversation")
                 stream.emit("conversation", {"id": conversation_id})
-            message = (payload or {}).get("message", "").strip()
+            message = payload.get("message", "").strip()
             if not message:
                 stream.error("Type a message to send.")
                 return

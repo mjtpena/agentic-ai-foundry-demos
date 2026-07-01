@@ -7,7 +7,6 @@ from __future__ import annotations
 CATALOG = [
     {
         "id": "prompt-agent",
-        "day": 1,
         "number": 3,
         "slide": 84,
         "title": "Prompt Agent",
@@ -20,7 +19,6 @@ CATALOG = [
     },
     {
         "id": "hosted-agent",
-        "day": 1,
         "number": 4,
         "slide": 87,
         "title": "Hosted Agent",
@@ -33,7 +31,6 @@ CATALOG = [
     },
     {
         "id": "mcp-tools",
-        "day": 2,
         "number": 6,
         "slide": 27,
         "title": "MCP Tools",
@@ -46,7 +43,6 @@ CATALOG = [
     },
     {
         "id": "openapi-tool",
-        "day": 2,
         "number": 7,
         "slide": 30,
         "title": "OpenAPI Tool",
@@ -59,7 +55,6 @@ CATALOG = [
     },
     {
         "id": "a2a-agent",
-        "day": 2,
         "number": 8,
         "slide": 35,
         "title": "A2A Agent",
@@ -72,7 +67,6 @@ CATALOG = [
     },
     {
         "id": "agentic-retrieval",
-        "day": 2,
         "number": 910,
         "slide": 61,
         "title": "Agentic Retrieval",
@@ -85,20 +79,18 @@ CATALOG = [
     },
     {
         "id": "agent-framework",
-        "day": 2,
         "number": 12,
         "slide": 83,
         "title": "Agent Framework",
         "capability": "Streaming · tools · memory",
         "summary": "Microsoft Agent Framework: streamed responses, Python ai_function "
                    "tools the agent chooses, and AgentThread memory across turns.",
-        "foundry": ["agent-framework", "Azure OpenAI", "AIFunction tools"],
+        "foundry": ["agent-framework", "Foundry model endpoint", "AIFunction tools"],
         "services": ["model", "tools", "memory", "streaming"],
         "status": "ready",
     },
     {
         "id": "guardrails",
-        "day": 3,
         "number": 16,
         "slide": 49,
         "title": "Guardrails",

@@ -164,7 +164,7 @@ def project_endpoint() -> str | None:
 
 
 def account_endpoint() -> str | None:
-    return env("FOUNDRY_ACCOUNT_ENDPOINT", "AZURE_OPENAI_ENDPOINT")
+    return env("FOUNDRY_ACCOUNT_ENDPOINT")
 
 
 def search_service_endpoint() -> str | None:
@@ -173,6 +173,15 @@ def search_service_endpoint() -> str | None:
 
 def hosted_agent_endpoint() -> str:
     return env("HOSTED_AGENT_ENDPOINT", default="http://127.0.0.1:8088") or "http://127.0.0.1:8088"
+
+
+def selected_model(payload: dict | None, *env_keys: str, default: str = "gpt-4.1-mini") -> str:
+    requested = (payload or {}).get("model")
+    if isinstance(requested, str) and requested.strip():
+        return requested.strip()
+    if env_keys:
+        return env(*env_keys, default=default) or default
+    return default
 
 
 # --------------------------------------------------------------------------- #
@@ -278,12 +287,19 @@ def environment_summary(refresh: bool = False) -> dict:
                 for d in deps:
                     props = d.get("properties", {})
                     sku = d.get("sku", {}) or {}
+                    model_info = (props.get("model", {}) or {})
+                    model_name = model_info.get("name")
+                    deployment_name = d.get("name")
+                    text_for_kind = f"{deployment_name or ''} {model_name or ''}".lower()
+                    kind = "embedding" if "embedding" in text_for_kind else "chat"
                     models.append({
-                        "name": d.get("name"),
-                        "version": (props.get("model", {}) or {}).get("version"),
+                        "name": deployment_name,
+                        "model_name": model_name,
+                        "version": model_info.get("version"),
                         "sku": sku.get("name"),
                         "capacity": sku.get("capacity"),
                         "state": props.get("provisioningState"),
+                        "kind": kind,
                     })
 
     # Cloud fallback: a container has no az CLI — fill the panel from env vars.
@@ -298,21 +314,23 @@ def environment_summary(refresh: bool = False) -> dict:
         for _nm in (env("FOUNDRY_MODELS", default="") or "").split(","):
             _nm = _nm.strip()
             if _nm:
+                _kind = "embedding" if "embedding" in _nm.lower() else "chat"
                 models.append({"name": _nm, "state": "Succeeded",
-                               "version": None, "sku": None, "capacity": None})
+                               "version": None, "sku": None, "capacity": None, "kind": _kind})
 
     # Which model names the demos actually reference, so we can flag fallbacks.
     referenced = {
-        "chat": env("MODEL_DEPLOYMENT_NAME", default="gpt-4o"),
-        "prompt_agent": env("PROMPT_AGENT_MODEL", default="gpt-5-mini"),
+        "chat": env("MODEL_DEPLOYMENT_NAME", default="gpt-4.1-mini"),
+        "prompt_agent": env("PROMPT_AGENT_MODEL", default="gpt-4.1-mini"),
         "hosted_agent": env("HOSTED_AGENT_MODEL", default="gpt-4.1"),
         "embedding": env("EMBEDDING_DEPLOYMENT", default="text-embedding-3-large"),
     }
     deployed_names = {m["name"] for m in models if m.get("name")}
     for role, name in referenced.items():
         if models and name not in deployed_names:
+            kind = "embedding" if role == "embedding" else "chat"
             models.append({"name": name, "state": "NotDeployed", "referenced_by": role,
-                           "version": None, "sku": None, "capacity": None})
+                           "version": None, "sku": None, "capacity": None, "kind": kind})
 
     portal = _portal_links(subscription.get("id"), resource_group, account_name,
                            project_name, subscription.get("tenant"))

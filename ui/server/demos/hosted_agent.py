@@ -1,4 +1,4 @@
-"""Day 1 · Demo 4 — Hosted Agent (invoker).
+"""Demo 4 — Deploy your first hosted agent (slide 87).
 
 This is a thin invoker. The REAL hosted agent is defined in
 day1/demo4_hosted_agent/agent.py and runs on **Foundry Agent Service** via the

@@ -1,7 +1,7 @@
 # Foundry Live Demo Console
 
 A branded web UI for the *Accelerate Agentic AI* demos. It drives the **same
-Microsoft Foundry SDK calls** as the Day 1–3 console scripts, but renders each
+Microsoft Foundry SDK calls** as the console scripts, but renders each
 run visually — the agent's response **and** what happened on the Foundry side
 (agents, tool calls, run steps, retrieval plans, guardrail verdicts) — so the
 capability is legible to an audience instead of scrolling past in a terminal.
@@ -45,7 +45,7 @@ The UI reads environment values from repo-root env files (in this order):
 Use these key variables:
 
 - `PROJECT_ENDPOINT` (or `FOUNDRY_PROJECT_ENDPOINT` / `AZURE_AI_PROJECT_ENDPOINT`)
-- `FOUNDRY_ACCOUNT_ENDPOINT` (or `AZURE_OPENAI_ENDPOINT`)
+- `FOUNDRY_ACCOUNT_ENDPOINT`
 - `SEARCH_ENDPOINT` (or `AZURE_SEARCH_ENDPOINT`)
 - `HOSTED_AGENT_ENDPOINT` (defaults to `http://127.0.0.1:8088`)
 
@@ -55,14 +55,14 @@ This makes it easy to keep multiple environments (for example `dev`, `test`, and
 
 | Demo | Shows | State |
 |---|---|---|
-| Prompt Agent (D1·3) | Multi-turn conversation memory | ready |
-| Hosted Agent (D1·4) | Code-based agent + local tools | needs `azd ai agent run` on :8088 |
-| MCP Tools (D2·6) | Live tool-use over the MS Learn MCP server | ready |
-| OpenAPI Tool (D2·7) | Calling a live REST API from a spec | ready |
-| A2A Agent (D2·8) | Agent-to-agent calls | needs an A2A project connection |
-| Agentic Retrieval (D2·9/10) | Query planning + grounded citations | click **Set up knowledge base** once |
-| Agent Framework (D2·12) | Streaming · `ai_function` tools · `AgentSession` memory | ready |
-| Guardrails (D3·16) | Content Safety harms · blocklist · prompt shield | ready |
+| Prompt Agent (Demo 3) | Multi-turn conversation memory | ready |
+| Hosted Agent (Demo 4) | Code-based agent + local tools | needs `azd ai agent run` on :8088 |
+| MCP Tools (Demo 6) | Live tool-use over the MS Learn MCP server | ready |
+| OpenAPI Tool (Demo 7) | Calling a live REST API from a spec | ready |
+| A2A Agent (Demo 8) | Agent-to-agent calls | needs an A2A project connection |
+| Agentic Retrieval (Demos 9/10) | Query planning + grounded citations | click **Set up knowledge base** once |
+| Agent Framework (Demo 12) | Streaming · `ai_function` tools · `AgentSession` memory | ready |
+| Guardrails (Demo 16) | Content Safety harms · blocklist · prompt shield | ready |
 
 The two gated demos and the retrieval setup show inline instructions in the UI.
 
@@ -75,7 +75,7 @@ ui/
     foundry.py           .env + DefaultAzureCredential + live environment summary (az)
     sse.py               runs each blocking demo in a thread, streams typed events as SSE
     catalog.py           demo metadata (nav, badges, slide #)
-    demos/<id>.py        thin wrappers around the existing Day 1-3 SDK calls
+    demos/<id>.py        thin wrappers around the existing SDK calls
   web/                   vanilla HTML/CSS/JS (no build step)
     index.html  styles.css  app.js
 ```
@@ -89,8 +89,8 @@ missing preview package degrades one demo rather than the whole server.
 Notes:
 - `gpt-5-mini` isn't available in `australiaeast`; the prompt agent uses
   `gpt-4.1-mini` (`PROMPT_AGENT_MODEL` in `.env`).
-- Agent Framework targets Azure OpenAI via `OpenAIChatCompletionClient`
-  (api-version `2024-10-21`) — the 1.9.x equivalent of `AzureOpenAIChatClient`.
+- Agent Framework uses the Foundry model endpoint via `OpenAIChatCompletionClient`
+  (api-version `2024-10-21`).
 - Prompt Shield needs the preview Content Safety SDK; on the stable build the
   Guardrails demo reports it as unavailable and continues.
 

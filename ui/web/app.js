@@ -229,18 +229,30 @@ function renderEnv(){
 // ---------- navigation + welcome ------------------------------------------ //
 function renderNav(){
   const nav = $('#nav'); nav.innerHTML='';
-  const days = [...new Set(DEMOS.map(d=>d.day))].sort();
-  for(const day of days){
-    nav.append(h('div',{class:'nav-day'},'Day '+day));
-    DEMOS.filter(d=>d.day===day).forEach(d=>{
-      const item = h('div',{class:'nav-item','data-id':d.id, onclick:()=>openDemo(d.id)});
-      item.innerHTML = svgIcon(d.id) + `<span class="nav-title">${esc(d.title)}</span>`;
-      if(d.status==='setup' || d.status==='gated') item.append(h('span',{class:'nav-flag'},'SETUP'));
-      nav.append(item);
-    });
-  }
+  DEMOS.forEach(d=>{
+    const item = h('div',{class:'nav-item','data-id':d.id, onclick:()=>openDemo(d.id)});
+    item.innerHTML = svgIcon(d.id) + `<span class="nav-title">${esc(d.title)}</span>`;
+    if(d.status==='setup' || d.status==='gated') item.append(h('span',{class:'nav-flag'},'SETUP'));
+    nav.append(item);
+  });
 }
-function numLabel(d){ return String(d.day_number || d.number); }
+function numLabel(d){ return d.number===910 ? '9·10' : String(d.number); }
+function modelOptions(){
+  const isModernChatModel = (name)=>/^gpt-(4\\.1|5)/i.test(name||'');
+  const opts = new Set();
+  for(const m of (ENV&&ENV.models)||[]){
+    if(!m || !m.name) continue;
+    if(m.state === 'NotDeployed') continue;
+    if(m.kind === 'embedding') continue;
+    if(!isModernChatModel(m.name)) continue;
+    opts.add(m.name);
+  }
+  const ref = (ENV&&ENV.referenced_models)||{};
+  if(opts.size===0){
+    for(const v of Object.values(ref)) if(v && !/embedding/i.test(v) && isModernChatModel(v)) opts.add(v);
+  }
+  return [...opts];
+}
 
 function renderWelcome(){
   const grid = $('#welcome-grid'); if(!grid) return; grid.innerHTML='';
@@ -248,7 +260,7 @@ function renderWelcome(){
     const tile = h('div',{class:'tile', onclick:()=>openDemo(d.id)});
     tile.innerHTML =
       `<div class="tile-top"><div class="tile-ic">${svgIcon(d.id)}</div>`+
-      `<div><div class="tile-eyebrow">Day ${d.day} · Demo ${numLabel(d)} · Slide ${d.slide}</div>`+
+      `<div><div class="tile-eyebrow">Demo ${numLabel(d)} · Slide ${d.slide}</div>`+
       `<div class="tile-title">${esc(d.title)}</div></div></div>`+
       `<div class="tile-cap">${esc(d.capability)}</div>`+
       `<div class="tile-sum">${esc(d.summary)}</div>`;
@@ -261,11 +273,15 @@ function openDemo(id){
   ACTIVE = DEMOS.find(d=>d.id===id); if(!ACTIVE) return;
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.id===id));
   if(!SESSIONS[id]) SESSIONS[id] = {};
+  const modelOpts = modelOptions();
+  if(!SESSIONS[id].selected_model && modelOpts.length){
+    SESSIONS[id].selected_model = modelOpts[0];
+  }
 
   const content = $('#content'); content.innerHTML='';
   const head = h('div',{class:'demo-head'});
   head.innerHTML =
-    `<div class="crumbs">Microsoft Foundry <span class="sep">/</span> Day ${ACTIVE.day} <span class="sep">/</span> Demo ${numLabel(ACTIVE)} <span class="sep">/</span> <b>${esc(ACTIVE.title)}</b></div>`+
+    `<div class="crumbs">Microsoft Foundry <span class="sep">/</span> Demo ${numLabel(ACTIVE)} <span class="sep">/</span> <b>${esc(ACTIVE.title)}</b></div>`+
     `<h1><span class="hic">${svgIcon(ACTIVE.id)}</span>${esc(ACTIVE.title)} <span class="demo-cap">${esc(ACTIVE.capability)}</span></h1>`+
     `<p class="demo-summary">${esc(ACTIVE.summary)}</p>`+
     `<div class="badges">${(ACTIVE.foundry||[]).map(f=>`<span class="badge">${esc(f)}</span>`).join('')}</div>`;
@@ -299,6 +315,29 @@ function openDemo(id){
 function buildControls(demo, ctx){
   const c = ctx.controls; c.innerHTML='';
   const runBtn = (label, cls)=> h('button',{class:'btn'+(cls?' '+cls:'')}, label);
+  const options = modelOptions();
+  if(options.length){
+    const select = h('select',{});
+    options.forEach(m=>select.append(h('option',{value:m},m)));
+    if(ctx.session.selected_model && options.includes(ctx.session.selected_model)){
+      select.value = ctx.session.selected_model;
+    } else {
+      ctx.session.selected_model = options[0];
+      select.value = options[0];
+    }
+    select.addEventListener('change', ()=>{ ctx.session.selected_model = select.value; });
+    const hint = (demo.id==='guardrails' || demo.id==='hosted-agent')
+      ? 'This demo does not call a Foundry model directly, but the selection is preserved.'
+      : 'Used for this demo run.';
+    c.append(
+      h('div',{class:'field'},
+        h('label',{},'Model'),
+        select,
+        h('div',{class:'env-sub'}, hint)
+      ),
+      h('div',{style:'height:10px'})
+    );
+  }
 
   if(demo.id==='prompt-agent'){
     const scripted = runBtn('▶  Run scripted memory test','grad');
@@ -597,6 +636,10 @@ async function runDemo(demo, action, payload, ctx, opts){
   ctx.streamEl=null;
 
   setBusy(ctx, true);
+  const runPayload = Object.assign({}, payload||{});
+  if(ctx.session && ctx.session.selected_model && !runPayload.model){
+    runPayload.model = ctx.session.selected_model;
+  }
   const handlers = {
     status:d=>addLog(ctx, d.message, d.kind),
     foundry:d=>addTrace(ctx, d),
@@ -614,7 +657,7 @@ async function runDemo(demo, action, payload, ctx, opts){
     done:()=>setBusy(ctx, false),
   };
   try{
-    await streamSSE(`/api/demos/${demo.id}/${action}`, payload, handlers);
+    await streamSSE(`/api/demos/${demo.id}/${action}`, runPayload, handlers);
   }catch(e){
     addLog(ctx, 'Connection error: '+e.message, 'error'); setBusy(ctx, false);
   }

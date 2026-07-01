@@ -1,7 +1,7 @@
-"""Day 2 · Demo 6 — Connect MCP tools to agents (slide 27)."""
+"""Demo 6 — Connect MCP tools to agents (slide 27)."""
 from __future__ import annotations
 
-from ..foundry import env, project_endpoint
+from ..foundry import env, project_endpoint, selected_model
 from ..sse import EventStream
 
 DEFAULT_PROMPT = (
@@ -23,8 +23,7 @@ def run(stream: EventStream, payload: dict) -> None:
     if not endpoint:
         stream.error("PROJECT_ENDPOINT is not set — run infra/provision first.")
         return
-    default_model = env("MODEL_DEPLOYMENT_NAME", "AZURE_AI_MODEL_DEPLOYMENT_NAME", default="gpt-4o")
-    model = inference.valid_agentservice_model((payload or {}).get("model") or default_model)
+    model = selected_model(payload, "MODEL_DEPLOYMENT_NAME", "AZURE_AI_MODEL_DEPLOYMENT_NAME", default="gpt-4.1-mini")
     url = env("MCP_SERVER_URL", default="https://learn.microsoft.com/api/mcp")
     label = env("MCP_SERVER_LABEL", default="mslearn")
     prompt = (payload or {}).get("prompt") or DEFAULT_PROMPT

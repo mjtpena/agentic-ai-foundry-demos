@@ -1,7 +1,7 @@
-"""Day 2 · Demo 7 — Connect to an OpenAPI specification (slide 30)."""
+"""Demo 7 — Connect to an OpenAPI specification (slide 30)."""
 from __future__ import annotations
 
-from ..foundry import REPO_ROOT, env, get_credential, project_endpoint
+from ..foundry import REPO_ROOT, get_credential, project_endpoint, selected_model
 from ..sse import EventStream
 
 SPEC_PATH = REPO_ROOT / "day2" / "demo7_openapi_tool" / "assets" / "weather_openapi.json"
@@ -21,8 +21,7 @@ def run(stream: EventStream, payload: dict) -> None:
     if not endpoint:
         stream.error("PROJECT_ENDPOINT is not set — run infra/provision first.")
         return
-    default_model = env("AZURE_AI_MODEL_DEPLOYMENT_NAME", "MODEL_DEPLOYMENT_NAME", default="gpt-4o")
-    model = inference.valid_agentservice_model((payload or {}).get("model") or default_model)
+    model = selected_model(payload, "AZURE_AI_MODEL_DEPLOYMENT_NAME", "MODEL_DEPLOYMENT_NAME", default="gpt-4.1-mini")
     city = (payload or {}).get("city") or "Seattle"
 
     project = AIProjectClient(endpoint=endpoint, credential=get_credential())
