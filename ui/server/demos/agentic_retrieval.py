@@ -6,7 +6,7 @@ status() : whether the knowledge base already exists
 """
 from __future__ import annotations
 
-from ..foundry import env, get_credential
+from ..foundry import account_endpoint, env, get_credential, search_service_endpoint
 from ..sse import EventStream
 
 DEFAULT_QUERY = (
@@ -24,8 +24,8 @@ SYSTEM = (
 
 def _names():
     return {
-        "search_endpoint": env("SEARCH_ENDPOINT", "AZURE_SEARCH_ENDPOINT"),
-        "foundry_endpoint": env("FOUNDRY_ACCOUNT_ENDPOINT"),
+        "search_endpoint": search_service_endpoint(),
+        "foundry_endpoint": account_endpoint(),
         "index": env("SEARCH_INDEX_NAME", default="earth-at-night"),
         "ks": env("KNOWLEDGE_SOURCE_NAME", default="earth-at-night-ks"),
         "kb": env("KNOWLEDGE_BASE_NAME", default="earth-at-night-kb"),

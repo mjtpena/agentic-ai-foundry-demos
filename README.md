@@ -11,6 +11,8 @@ and **Foundry Control Plane / Content Safety**.
 > console output. Portal-only demos (Copilot Studio, Control Plane) ship as
 > precise click-by-click runbooks.
 
+For contribution workflow, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## 0 · Prerequisites
 - **Azure CLI** (`az`) signed in to your subscription: `az login`
 - **Azure Developer CLI** (`azd`) — only for Day 1 #4 hosted agent
@@ -75,7 +77,22 @@ Every Python demo authenticates with **`DefaultAzureCredential`** / **`AzureCliC
 (Cognitive Services User/OpenAI User, Search data roles, Storage Blob roles). Just
 keep `az login` current.
 
-## 5 · Repo layout
+## 5 · Configure your own endpoints and environments
+
+All demos are environment-driven. Copy `.env.example` to `.env` and set your own:
+
+- Foundry project endpoint (`PROJECT_ENDPOINT`)
+- Foundry account endpoint (`FOUNDRY_ACCOUNT_ENDPOINT` or `AZURE_OPENAI_ENDPOINT`)
+- Search endpoint (`SEARCH_ENDPOINT`)
+- Deployment names (`MODEL_DEPLOYMENT_NAME`, `EMBEDDING_DEPLOYMENT`, etc.)
+
+For multi-environment workflows:
+
+- `FOUNDRY_ENVIRONMENT=dev` loads `.env.dev` and `.env.dev.local`
+- `FOUNDRY_ENV_FILE=path/to/custom.env` loads an extra env file last
+- `.env.local` always overrides `.env`
+
+## 6 · Repo layout
 ```
 infra/        provision.sh/.ps1 · upload_sample_data.sh · teardown · 00-variables.sh
 shared/       console.py (env loading + pretty output) used by all Python demos
@@ -84,7 +101,7 @@ day1/ day2/ day3/   one folder per demo: code + per-demo README + portal runbook
 requirements.txt
 ```
 
-## 6 · Clean up (stop charges)
+## 7 · Clean up (stop charges)
 ```bash
 infra/teardown.sh        # deletes the whole resource group
 # Day 1 #4 also: cd day1/demo4_hosted_agent && azd down

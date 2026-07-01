@@ -10,10 +10,7 @@ Two ways to run, both LIVE:
 """
 from __future__ import annotations
 
-import json
-
-from .. import inference, live_agents
-from ..foundry import env, get_credential
+from ..foundry import env, get_credential, project_endpoint
 from ..sse import EventStream
 
 
@@ -31,84 +28,52 @@ def status() -> dict:
     }
 
 
-def _consult_b(question: str, b_model: str) -> str:
-    """Real A2A hop to Agent B (HTTP); fall back to the same live agent in-process."""
-    try:
-        return live_agents.call_agent_b(question, b_model)
-    except Exception:
-        return live_agents.run_agent_b(question, b_model)
-
-def _run_live_a2a(stream: EventStream, message: str, b_model: str) -> None:
-    client = live_agents.get_client()
-    model = env("MODEL_DEPLOYMENT_NAME", "AZURE_AI_MODEL_DEPLOYMENT_NAME", default="gpt-4o")
-
-    stream.foundry("Agent A", f"primary orchestrator · {inference.label_for(model)}", kind="agent", model=model)
-    stream.foundry("Agent B", f"{live_agents.AGENT_B_NAME} · {inference.label_for(b_model)} @ {live_agents.AGENT_B_URL}",
-                   kind="connection")
-    stream.user(message)
-
-    tools = [{
-        "type": "function",
-        "function": {
-            "name": "consult_agent_b",
-            "description": ("Consult the secondary specialist Agent B (Atlas) over A2A for "
-                            "questions about data retrieval, API calls, records, or its own capabilities."),
-            "parameters": {
-                "type": "object",
-                "properties": {"question": {"type": "string", "description": "The question to forward to Agent B."}},
-                "required": ["question"],
-            },
-        },
-    }]
-    messages = [
-        {"role": "system", "content": (
-            "You are Agent A, the primary agent, and you keep control of the conversation. "
-            "When a question is better answered by the connected secondary agent (Agent B, "
-            "'Atlas'), call the consult_agent_b tool, then summarize its response for the user "
-            "in your own words.")},
-        {"role": "user", "content": message},
-    ]
-
-    stream.status("Agent A deciding whether to call Agent B (A2A)…", kind="step")
-    first = client.chat.completions.create(model=model, messages=messages, tools=tools, tool_choice="required")
-    msg = first.choices[0].message
-    messages.append(msg.model_dump(exclude_none=True))
-
-    b_answer = None
-    for tc in (msg.tool_calls or []):
-        try:
-            args = json.loads(tc.function.arguments or "{}")
-        except Exception:
-            args = {}
-        question = args.get("question") or message
-        stream.foundry("A2A call → Agent B", f"POST {live_agents.AGENT_B_URL}/a2a", kind="connection")
-        stream.status(f"Agent A → Agent B ({inference.label_for(b_model)}): {question}", kind="step")
-        b_answer = _consult_b(question, b_model)
-        stream.foundry("Agent B replied", (b_answer or "")[:220], kind="run")
-        messages.append({"role": "tool", "tool_call_id": tc.id, "content": b_answer or ""})
-
-    stream.status("Agent A summarizing Agent B's response (keeps control)…", kind="step")
-    got = False
-    for chunk in client.chat.completions.create(model=model, messages=messages, stream=True):
-        if not chunk.choices:
-            continue
-        delta = chunk.choices[0].delta
-        if getattr(delta, "content", None):
-            got = True
-            stream.token(delta.content)
-    stream.emit("token_done", {})
-    if not got and b_answer:
-        stream.answer(b_answer)
-    stream.status("A2A exchange complete — Agent A kept control of the turn.", kind="ok")
-
-
-def _run_connection_a2a(stream: EventStream, message: str, connection_id: str) -> None:
-    """The slide's exact path: Foundry A2ATool over a project connection."""
-    from azure.ai.projects import AIProjectClient
-    from azure.ai.projects.models import PromptAgentDefinition, A2ATool
-
-    endpoint = env("FOUNDRY_PROJECT_ENDPOINT", "PROJECT_ENDPOINT")
+def run(stream: EventStream, payload: dict) -> None:
+    endpoint = project_endpoint()
     model = env("FOUNDRY_MODEL_DEPLOYMENT_NAME", "MODEL_DEPLOYMENT_NAME", default="gpt-4o")
+    connection_id = env("A2A_PROJECT_CONNECTION_ID")
+    if not connection_id:
+        # Simulate A2A behavior so the demo stays usable when no external A2A
+        # connection is configured. This streams token deltas to mimic a
+        # secondary agent response.
+        stream.foundry("A2A connection", "(simulated)", kind="connection")
+        stream.status("Simulating Agent A → Agent B interaction (no A2A connection)", kind="step")
+        message = (payload or {}).get("message") or "What can the secondary agent do?"
+        stream.user(message)
+        sample = (
+            "The secondary agent can fetch records, call APIs, and return structured "
+            "data. This is a simulated streamed response for demo purposes."
+        )
+        for token in sample.split():
+            stream.token(token + " ")
+        stream.emit("token_done", {})
+        stream.status("Simulation complete (A2A not configured).", kind="ok")
+        return
+
+    if not endpoint:
+        stream.error("PROJECT_ENDPOINT is not set — run infra/provision first.")
+        return
+
+    try:
+        from azure.ai.projects import AIProjectClient
+        from azure.ai.projects.models import PromptAgentDefinition, A2ATool
+    except ImportError as e:
+        # A2ATool not available in this SDK version; fall back to simulation
+        stream.status(f"A2A tool unavailable ({e.__class__.__name__}); using simulation", kind="warn")
+        stream.foundry("A2A connection", "(simulated)", kind="connection")
+        stream.status("Simulating Agent A → Agent B interaction", kind="step")
+        message = (payload or {}).get("message") or "What can the secondary agent do?"
+        stream.user(message)
+        sample = (
+            "The secondary agent can fetch records, call APIs, and return structured "
+            "data. This is a simulated streamed response for demo purposes."
+        )
+        for token in sample.split():
+            stream.token(token + " ")
+        stream.emit("token_done", {})
+        stream.status("Simulation complete (tool unavailable).", kind="ok")
+        return
+
     project = AIProjectClient(endpoint=endpoint, credential=get_credential())
     openai_client = project.get_openai_client()
     try:

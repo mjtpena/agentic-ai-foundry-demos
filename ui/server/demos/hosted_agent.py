@@ -8,30 +8,30 @@ not this wrapper.
 """
 from __future__ import annotations
 
-import asyncio
-import importlib.util
-
-from .. import inference
-from ..foundry import REPO_ROOT
+from ..foundry import hosted_agent_endpoint
 from ..sse import EventStream
 
-_AGENT_PATH = REPO_ROOT / "day1" / "demo4_hosted_agent" / "agent.py"
-_agent_mod = None
+CANDIDATE_PATHS = ["/responses", "/v1/responses", "/invoke"]
 
 
-def _load_agent():
-    """Load the canonical hosted-agent definition (day1/demo4_hosted_agent/agent.py)."""
-    global _agent_mod
-    if _agent_mod is None:
-        spec = importlib.util.spec_from_file_location("day1_hosted_agent_def", _AGENT_PATH)
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        _agent_mod = mod
-    return _agent_mod
+def _probe(base_url: str) -> bool:
+    import httpx
+
+    for path in ("/health", "/", "/openapi.json"):
+        try:
+            r = httpx.get(base_url + path, timeout=1.5)
+            if r.status_code < 500:
+                return True
+        except Exception:
+            continue
+    return False
 
 
 def status() -> dict:
-    return {"ready": True, "mode": "foundry-agent-service"}
+    base_url = hosted_agent_endpoint().rstrip("/")
+    up = _probe(base_url)
+    return {"ready": up, "url": base_url,
+            "reason": None if up else f"hosted-agent server ({base_url}) is not running"}
 
 
 def run(stream: EventStream, payload: dict) -> None:
@@ -40,14 +40,42 @@ def run(stream: EventStream, payload: dict) -> None:
     # Foundry Agent Service runs the OpenAI-family deployments.
     model = inference.valid_agentservice_model(payload.get("model"))
 
-    stream.foundry("Foundry Agent Service", "code-based agent · project endpoint", kind="hosting")
-    stream.foundry("Model", inference.label_for(model), kind="model")
-    stream.foundry("Server-side tools", "get_local_date_time, hours_until", kind="toolcall")
+    base_url = hosted_agent_endpoint().rstrip("/")
+    stream.foundry("Hosted endpoint", base_url, kind="hosting")
+    message = (payload or {}).get("message") or "What time is it in Tokyo, and how long until 6pm there?"
     stream.user(message)
-    stream.status(
-        f"Running the code-based agent on Foundry Agent Service ({inference.label_for(model)})…",
-        kind="step",
-    )
+
+    # Try local hosted agent server first; if unavailable, provide an in-process
+    # fallback implementation for common demo queries so the UI demo remains
+    # functional when the local server isn't running (e.g., in cloud deploy).
+    if _probe(base_url):
+        stream.status("Invoking the local hosted agent (server-side Python tools)…", kind="step")
+        body = {"input": message, "stream": False}
+        last_err = None
+        with httpx.Client(timeout=60) as client:
+            for path in CANDIDATE_PATHS:
+                try:
+                    r = client.post(base_url + path, json=body)
+                    if r.status_code >= 400:
+                        last_err = f"{path} → HTTP {r.status_code}"
+                        continue
+                    data = r.json()
+                    text = (data.get("output_text")
+                            or _dig_text(data)
+                            or r.text)
+                    stream.foundry("Served by", path, kind="hosting")
+                    stream.answer(text)
+                    return
+                except Exception as exc:  # noqa: BLE001
+                    last_err = f"{path} → {type(exc).__name__}: {exc}"
+                    continue
+        stream.error(f"Could not invoke the local agent ({last_err}).",
+                     hint="Use `azd ai agent invoke --local \"...\"` from day1/demo4_hosted_agent, "
+                          "or set HOSTED_AGENT_ENDPOINT to your server URL.")
+        return
+
+    # Fallback: simple in-process responder for demo-friendly queries (Tokyo/time)
+    stream.status("Local hosted agent not reachable — using simulated fallback.", kind="warn")
     try:
         mod = _load_agent()
         answer = asyncio.run(mod.ask(message, model))

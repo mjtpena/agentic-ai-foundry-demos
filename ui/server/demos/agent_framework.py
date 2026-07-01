@@ -12,8 +12,7 @@ from __future__ import annotations
 import asyncio
 from typing import Annotated
 
-from .. import inference
-from ..foundry import env
+from ..foundry import account_endpoint, env
 from ..sse import EventStream
 
 API_VERSION = "2024-10-21"
@@ -51,7 +50,7 @@ async def _run_async(stream: EventStream, payload: dict) -> None:
     from agent_framework._tools import ai_function
     from azure.identity import DefaultAzureCredential
 
-    endpoint = env("FOUNDRY_ACCOUNT_ENDPOINT")
+    endpoint = account_endpoint()
     if not endpoint:
         stream.error("FOUNDRY_ACCOUNT_ENDPOINT is not set — run infra/provision first.")
         return

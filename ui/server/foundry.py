@@ -30,24 +30,54 @@ if str(REPO_ROOT) not in sys.path:
 _ENV_LOADED = False
 
 
+def _env_paths() -> list[tuple[Path, bool]]:
+    profile = os.environ.get("FOUNDRY_ENVIRONMENT") or os.environ.get("ACCELERATE_ENVIRONMENT")
+    configured_path = os.environ.get("FOUNDRY_ENV_FILE") or os.environ.get("ACCELERATE_ENV_FILE")
+    paths: list[tuple[Path, bool]] = [(REPO_ROOT / ".env", False)]
+    if profile:
+        paths.append((REPO_ROOT / f".env.{profile}", True))
+    paths.append((REPO_ROOT / ".env.local", True))
+    if profile:
+        paths.append((REPO_ROOT / f".env.{profile}.local", True))
+    if configured_path:
+        custom = Path(configured_path)
+        if not custom.is_absolute():
+            custom = REPO_ROOT / custom
+        paths.append((custom, True))
+    return paths
+
+
+def _fallback_load(path: Path, *, override: bool) -> None:
+    if not path.exists():
+        return
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if override:
+            os.environ[key] = value
+        else:
+            os.environ.setdefault(key, value)
+
+
 def load_env() -> None:
-    """Load the repo-root .env (written by infra/provision) into os.environ once."""
+    """Load configured env files into os.environ once."""
     global _ENV_LOADED
     if _ENV_LOADED:
         return
-    env_path = REPO_ROOT / ".env"
+    paths = _env_paths()
     try:
         from dotenv import load_dotenv
 
-        load_dotenv(env_path, override=False)
-        load_dotenv(REPO_ROOT / ".env.local", override=True)
+        for path, override in paths:
+            if path.exists():
+                load_dotenv(path, override=override)
     except ImportError:  # pragma: no cover - minimal fallback parser
-        if env_path.exists():
-            for line in env_path.read_text().splitlines():
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    k, v = line.split("=", 1)
-                    os.environ.setdefault(k.strip(), v.strip())
+        for path, override in paths:
+            _fallback_load(path, override=override)
     _ENV_LOADED = True
 
 
@@ -129,6 +159,22 @@ def get_credential():
     return DefaultAzureCredential()
 
 
+def project_endpoint() -> str | None:
+    return env("PROJECT_ENDPOINT", "FOUNDRY_PROJECT_ENDPOINT", "AZURE_AI_PROJECT_ENDPOINT")
+
+
+def account_endpoint() -> str | None:
+    return env("FOUNDRY_ACCOUNT_ENDPOINT", "AZURE_OPENAI_ENDPOINT")
+
+
+def search_service_endpoint() -> str | None:
+    return env("SEARCH_ENDPOINT", "AZURE_SEARCH_ENDPOINT")
+
+
+def hosted_agent_endpoint() -> str:
+    return env("HOSTED_AGENT_ENDPOINT", default="http://127.0.0.1:8088") or "http://127.0.0.1:8088"
+
+
 # --------------------------------------------------------------------------- #
 # Small az CLI helper (cached) — used only for the read-only environment panel
 # --------------------------------------------------------------------------- #
@@ -198,12 +244,12 @@ def environment_summary(refresh: bool = False) -> dict:
     if _ENV_SUMMARY_CACHE and not refresh and now - _ENV_SUMMARY_CACHE[0] < _AZ_TTL:
         return _ENV_SUMMARY_CACHE[1]
 
-    project_endpoint = env("PROJECT_ENDPOINT", "FOUNDRY_PROJECT_ENDPOINT", "AZURE_AI_PROJECT_ENDPOINT")
-    account_endpoint = env("FOUNDRY_ACCOUNT_ENDPOINT")
-    search_endpoint = env("SEARCH_ENDPOINT", "AZURE_SEARCH_ENDPOINT")
+    current_project_endpoint = project_endpoint()
+    current_account_endpoint = account_endpoint()
+    current_search_endpoint = search_service_endpoint()
 
-    account_name = _account_name_from_endpoint(account_endpoint or project_endpoint)
-    project_name = _project_name_from_endpoint(project_endpoint)
+    account_name = _account_name_from_endpoint(current_account_endpoint or current_project_endpoint)
+    project_name = _project_name_from_endpoint(current_project_endpoint)
 
     # Identity / subscription (cheap, single az call)
     acct = _az("account", "show") or {}
@@ -272,8 +318,8 @@ def environment_summary(refresh: bool = False) -> dict:
                            project_name, subscription.get("tenant"))
 
     summary = {
-        "project": {"name": project_name, "endpoint": project_endpoint},
-        "account": {"name": account_name, "endpoint": account_endpoint, "region": region,
+        "project": {"name": project_name, "endpoint": current_project_endpoint},
+        "account": {"name": account_name, "endpoint": current_account_endpoint, "region": region,
                     "resource_group": resource_group},
         "subscription": subscription,
         "identity": {
@@ -283,11 +329,15 @@ def environment_summary(refresh: bool = False) -> dict:
         },
         "models": models,
         "referenced_models": referenced,
-        "search": {"endpoint": search_endpoint,
-                   "service": _account_name_from_endpoint(search_endpoint)},
+        "search": {"endpoint": current_search_endpoint,
+                   "service": _account_name_from_endpoint(current_search_endpoint)},
         "storage": {"account": env("STORAGE_ACCOUNT"), "container": env("BLOB_CONTAINER")},
         "mcp": {"url": env("MCP_SERVER_URL"), "label": env("MCP_SERVER_LABEL")},
         "a2a": {"connection_id": env("A2A_PROJECT_CONNECTION_ID")},
+        "configuration": {
+            "environment": env("FOUNDRY_ENVIRONMENT", "ACCELERATE_ENVIRONMENT"),
+            "env_file": env("FOUNDRY_ENV_FILE", "ACCELERATE_ENV_FILE"),
+        },
         "portal": portal,
         "fetched_at": now,
     }

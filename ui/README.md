@@ -32,6 +32,25 @@ python -m venv .venv
 > Open the **served URL** (`127.0.0.1:8099`) — not the static `index.html` file.
 > The app is backend-driven; the file on its own renders an empty shell.
 
+## Configure your own Foundry environment
+
+The UI reads environment values from repo-root env files (in this order):
+
+1. `.env`
+2. `.env.<FOUNDRY_ENVIRONMENT>` (optional)
+3. `.env.local`
+4. `.env.<FOUNDRY_ENVIRONMENT>.local` (optional)
+5. `FOUNDRY_ENV_FILE` (optional extra file, loaded last)
+
+Use these key variables:
+
+- `PROJECT_ENDPOINT` (or `FOUNDRY_PROJECT_ENDPOINT` / `AZURE_AI_PROJECT_ENDPOINT`)
+- `FOUNDRY_ACCOUNT_ENDPOINT` (or `AZURE_OPENAI_ENDPOINT`)
+- `SEARCH_ENDPOINT` (or `AZURE_SEARCH_ENDPOINT`)
+- `HOSTED_AGENT_ENDPOINT` (defaults to `http://127.0.0.1:8088`)
+
+This makes it easy to keep multiple environments (for example `dev`, `test`, and `prod`) without changing code.
+
 ## The eight demos
 
 | Demo | Shows | State |

@@ -212,6 +212,10 @@ function renderEnv(){
     h('div',{class:'env-v'}, models.length?h('div',{class:'env-models'},...models):'—')));
   if(ENV.search&&ENV.search.service) rows.push(row('Search', ENV.search.service, 'basic · semantic ranker'));
   if(ENV.storage&&ENV.storage.account) rows.push(row('Storage', ENV.storage.account, ENV.storage.container));
+  if(ENV.configuration && (ENV.configuration.environment || ENV.configuration.env_file)){
+    rows.push(row('Config', ENV.configuration.environment || 'default',
+      ENV.configuration.env_file || '.env / .env.local'));
+  }
   if(ENV.portal){
     const links=[];
     if(ENV.portal.account) links.push(h('a',{href:ENV.portal.account,target:'_blank',rel:'noopener'},'Account ↗'));
@@ -442,31 +446,16 @@ function buildControls(demo, ctx){
     const setupHost = h('div',{});
     const input = h('input',{type:'text',value:'What time is it in Tokyo, and how long until 6pm there?'});
     const btn = runBtn('▶  Invoke hosted agent','grad');
-    btn.onclick = ()=> ctx.run('run',{message:input.value.trim(),model:ctx.getModel()});
-    c.append(setupHost, h('div',{class:'field'},h('label',{},'Message (server-side Python tools decide the answer)'),input),
-      modelPicker(ctx,{openaiOnly:true, label:'Hosted-agent model (runs on Foundry Agent Service)'}),
+    btn.onclick = ()=> ctx.run('run',{message:input.value.trim()});
+    const note = h('div',{class:'notice warn'},'Checking hosted-agent server…');
+    c.append(note, h('div',{class:'field'},h('label',{},'Message (server-side Python tools decide the answer)'),input),
       h('div',{class:'row',style:'margin-top:10px'},btn));
-    const refresh = ()=>{
-      setupHost.innerHTML='';
-      setupHost.append(setupCard({title:'Local hosted-agent server', state:'checking', message:'Checking server on :8088…'}));
-      fetch('/api/demos/hosted-agent/status').then(r=>r.json()).then(s=>{
-        setupHost.innerHTML='';
-        if(s.ready){ btn.disabled=false;
-          setupHost.append(setupCard({title:'Hosted-agent server', state:'ready',
-            message:'Live hosted agent is running on :8088 (real Azure OpenAI model + server-side Python tools) — invoke below.', onRecheck:refresh}));
-        }else{ btn.disabled=true;
-          setupHost.append(setupCard({title:'Local hosted-agent server', state:'setup',
-            message:'The hosted agent runs as a local server first, then deploys to Foundry Agent Service unchanged.',
-            steps:[
-              {text:'Start the server in a terminal:', code:'cd day1/demo4_hosted_agent\nazd ai agent run'},
-              {text:'Click <b>Re-check</b>, then Invoke. Deploy the same code with <code>azd deploy</code>.'}],
-            onRecheck:refresh}));
-        }
-      }).catch(()=>{ setupHost.innerHTML='';
-        setupHost.append(setupCard({title:'Local hosted-agent server', state:'setup',
-          message:'Status unavailable — start the server and re-check.', onRecheck:refresh})); });
-    };
-    refresh();
+    fetch('/api/demos/hosted-agent/status').then(r=>r.json()).then(s=>{
+      if(s.ready){ note.className='notice warn'; note.textContent=`Hosted agent server is up on ${s.url} ✓`; }
+      else{ note.className='notice err';
+        note.innerHTML=`Hosted-agent server not running at <code>${esc(s.url||'HOSTED_AGENT_ENDPOINT')}</code>. Start it in a terminal:<br><code>cd day1/demo4_hosted_agent\nazd ai agent run</code><br>or set <code>HOSTED_AGENT_ENDPOINT</code> in your env file.`;
+      }
+    }).catch(()=>{note.textContent='Status unavailable.';});
   }
 
   // View source — opens a wide modal (available for all demos)

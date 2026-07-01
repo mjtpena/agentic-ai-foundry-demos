@@ -1,8 +1,7 @@
 """Day 2 · Demo 7 — Connect to an OpenAPI specification (slide 30)."""
 from __future__ import annotations
 
-from .. import inference
-from ..foundry import REPO_ROOT, env, get_credential
+from ..foundry import REPO_ROOT, env, get_credential, project_endpoint
 from ..sse import EventStream
 
 SPEC_PATH = REPO_ROOT / "day2" / "demo7_openapi_tool" / "assets" / "weather_openapi.json"
@@ -18,7 +17,7 @@ def run(stream: EventStream, payload: dict) -> None:
     from azure.ai.projects import AIProjectClient
     from azure.ai.projects.models import PromptAgentDefinition
 
-    endpoint = env("AZURE_AI_PROJECT_ENDPOINT", "PROJECT_ENDPOINT")
+    endpoint = project_endpoint()
     if not endpoint:
         stream.error("PROJECT_ENDPOINT is not set — run infra/provision first.")
         return

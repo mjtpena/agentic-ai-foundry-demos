@@ -1,8 +1,7 @@
 """Day 2 · Demo 6 — Connect MCP tools to agents (slide 27)."""
 from __future__ import annotations
 
-from ..foundry import env
-from .. import inference
+from ..foundry import env, project_endpoint
 from ..sse import EventStream
 
 DEFAULT_PROMPT = (
@@ -20,7 +19,7 @@ def run(stream: EventStream, payload: dict) -> None:
     from azure.ai.agents import AgentsClient
     from azure.ai.agents.models import McpTool, ToolSet, ListSortOrder
 
-    endpoint = env("PROJECT_ENDPOINT", "FOUNDRY_PROJECT_ENDPOINT")
+    endpoint = project_endpoint()
     if not endpoint:
         stream.error("PROJECT_ENDPOINT is not set — run infra/provision first.")
         return

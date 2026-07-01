@@ -1,8 +1,7 @@
 """Day 1 · Demo 3 — Prompt agent with multi-turn memory (slide 84)."""
 from __future__ import annotations
 
-from ..foundry import env, get_credential
-from .. import inference
+from ..foundry import env, get_credential, project_endpoint
 from ..sse import EventStream
 
 AGENT_NAME = "day1-prompt-agent"
@@ -17,7 +16,7 @@ INSTRUCTIONS = (
 def _clients():
     from azure.ai.projects import AIProjectClient
 
-    endpoint = env("PROJECT_ENDPOINT", "FOUNDRY_PROJECT_ENDPOINT")
+    endpoint = project_endpoint()
     if not endpoint:
         raise RuntimeError("PROJECT_ENDPOINT is not set — run infra/provision first.")
     project = AIProjectClient(endpoint=endpoint, credential=get_credential())
